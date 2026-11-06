@@ -1,7 +1,10 @@
 # wiki-site-action
 
 A reusable GitHub Action that builds a `.wiki/` Markdown knowledge base into a
-browsable static site and publishes it to a branch for GitHub Pages.
+browsable static site. It writes the site to an output directory; the consuming
+workflow uploads that directory with `actions/upload-pages-artifact` and deploys
+it with `actions/deploy-pages` (the official GitHub Pages custom-workflow
+approach).
 
 The generated site includes:
 
@@ -14,44 +17,62 @@ The generated site includes:
 
 ## Usage
 
-The action must run in a workflow that checks out the repo and grants
-`contents: write` (needed to push the publish branch):
+Pair the action with the standard "Deploy static site to Pages" pattern. The
+repo's Pages publishing source must be set to **GitHub Actions** (Settings →
+Pages → Source).
 
 ```yaml
+name: Deploy static site to Pages
+
 on:
   push:
     branches: [main]
-    paths:
-      - '.wiki/**'
-      - '.github/workflows/wiki-pages.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: iromu/wiki-site-action@v1
+      - uses: actions/configure-pages@v4
+      - uses: iromu/wiki-site-action@v2
         with:
           wiki-dir: .wiki
-          publish-branch: gh-pages
+          out-dir: dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v1
 ```
 
 ### Inputs
 
-| Name             | Default                                              | Description                                                        |
-| ---------------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
-| `wiki-dir`       | `.wiki`                                              | Source wiki directory, relative to the repo root.                   |
-| `out-dir`        | `dist`                                               | Where the built site is written, relative to the repo root.         |
-| `site-title`     | _(index page `title`)_                               | Brand / page-title / 404 title. Falls back to the index `title`.    |
-| `github-repo`    | _(current repo)_                                     | `owner/repo` used for "view source" links.                          |
-| `github-branch`  | _(current branch)_                                   | Branch used for "view source" links.                                |
-| `categories`     | `overview,entities,concepts,flows,features,risks,reference` | Comma-separated sidebar order; unlisted dirs are appended.   |
-| `publish-branch` | `gh-pages`                                           | Branch to publish the site to.                                      |
-| `subfolder`      | _(empty)_                                            | Optional subpath within the branch (e.g. `docs` for project pages). |
+| Name          | Default                                              | Description                                                  |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| `wiki-dir`    | `.wiki`                                              | Source wiki directory, relative to the repo root.             |
+| `out-dir`     | `dist`                                               | Where the built site is written, relative to the repo root.   |
+| `site-title`  | _(index page `title`)_                               | Brand / page-title / 404 title. Falls back to the index `title`. |
+| `github-repo` | _(current repo)_                                     | `owner/repo` used for "view source" links.                    |
+| `github-branch`| _(current branch)_                                   | Branch used for "view source" links.                          |
+| `categories`  | `overview,entities,concepts,flows,features,risks,reference` | Comma-separated sidebar order; unlisted dirs are appended. |
 
 ### Frontmatter conventions
 
@@ -72,18 +93,16 @@ title.
 
 ## How it works
 
-`index.js` reads the inputs, calls `buildSite()` (in `lib/build-site.js`) to
-render the site, then calls `publish()` (in `lib/publish.js`) to deploy it.
-Publishing stages the deploy in a throwaway clone — it checks out (or creates)
-the publish branch, replaces its contents with the built site, commits, and
-pushes — without ever disturbing the workflow's checkout.
+`index.js` reads the inputs and calls `buildSite()` (in `lib/build-site.js`) to
+render the site into `out-dir`. That's it — deployment is the consuming
+workflow's job.
 
 ## Development
 
 ```sh
 npm install
-npm test     # build + publish smoke test against a throwaway git origin
-npm run build   # bundle index.js -> dist/index.cjs (committed)
+npm test      # build smoke test against a fixture wiki
+npm run build # bundle index.js -> dist/index.cjs (committed)
 ```
 
 `dist/index.cjs` is the bundled entry the action runs (see `action.yml`); it is

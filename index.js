@@ -1,7 +1,6 @@
 import * as core from '@actions/core';
 import { resolve } from 'node:path';
 import { buildSite } from './lib/build-site.js';
-import { publish } from './lib/publish.js';
 
 const DEFAULT_CATEGORIES = 'overview,entities,concepts,flows,features,risks,reference';
 
@@ -13,8 +12,6 @@ async function run() {
   const githubBranch = core.getInput('github-branch') || process.env.GITHUB_REF_NAME;
   const categories = (core.getInput('categories') || DEFAULT_CATEGORIES)
     .split(',').map(s => s.trim()).filter(Boolean);
-  const publishBranch = core.getInput('publish-branch') || 'gh-pages';
-  const subfolder = core.getInput('subfolder');
 
   if (!githubRepo) throw new Error('Could not determine github-repo (set the input or run in a GitHub workflow).');
 
@@ -34,9 +31,6 @@ async function run() {
   if (result.brokenLinks.length) {
     core.warning(`${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(', ')}`);
   }
-
-  core.info(`Publishing to branch "${publishBranch}"${subfolder ? ` under "${subfolder}"` : ''}.`);
-  await publish({ publishDir: absOut, publishBranch, subfolder });
 }
 
 run().catch(err => core.setFailed(err.message));

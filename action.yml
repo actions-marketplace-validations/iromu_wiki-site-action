@@ -1,8 +1,9 @@
 name: Wiki Site Action
 description: >-
   Build a .wiki/ knowledge base into a static site (category sidebar, per-page
-  TOC, code highlighting, client-side search) and publish it to a branch for
-  GitHub Pages.
+  TOC, code highlighting, client-side search) into an output directory. The
+  consuming workflow uploads that directory with actions/upload-pages-artifact
+  and deploys it with actions/deploy-pages.
 
 inputs:
   wiki-dir:
@@ -33,16 +34,6 @@ inputs:
       Directories not listed are appended after these.
     required: false
     default: overview,entities,concepts,flows,features,risks,reference
-  publish-branch:
-    description: Branch to publish the built site to.
-    required: false
-    default: gh-pages
-  subfolder:
-    description: >-
-      Optional subpath within the publish branch to place the site (e.g. "docs"
-      for a project page). Leave empty to publish to the branch root.
-    required: false
-    default: ''
 
 runs:
   using: node24

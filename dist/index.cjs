@@ -75813,7 +75813,7 @@ var require_lib2 = __commonJS({
 
 // index.js
 var core = __toESM(require_core(), 1);
-var import_node_path3 = require("node:path");
+var import_node_path2 = require("node:path");
 
 // lib/build-site.js
 var import_node_fs = require("node:fs");
@@ -78678,78 +78678,18 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   };
 }
 
-// lib/publish.js
-var import_node_child_process = require("node:child_process");
-var import_node_fs2 = require("node:fs");
-var import_node_os = require("node:os");
-var import_node_path2 = require("node:path");
-function run(file, args, { allowFail = false, cwd } = {}) {
-  try {
-    return (0, import_node_child_process.execFileSync)(file, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
-  } catch (e) {
-    if (allowFail) return (e.stdout ?? "").toString();
-    throw e;
-  }
-}
-var git = (args, opts) => run("git", args, opts);
-function copyContents(src, dest) {
-  for (const entry of (0, import_node_fs2.readdirSync)(src)) {
-    (0, import_node_fs2.cpSync)((0, import_node_path2.join)(src, entry), (0, import_node_path2.join)(dest, entry), { recursive: true });
-  }
-}
-function originUrl() {
-  const token = process.env.GITHUB_TOKEN;
-  const repo = process.env.GITHUB_REPOSITORY;
-  const server = process.env.GITHUB_SERVER_URL || "https://github.com";
-  if (token && repo) {
-    return server.replace(/^https:\/\//, `https://x-access-token:${token}@`) + `/${repo}.git`;
-  }
-  return git(["remote", "get-url", "origin"]).trim();
-}
-async function publish({ publishDir, publishBranch = "gh-pages", subfolder = "" }) {
-  const url = originUrl();
-  if (!url) throw new Error("Could not determine the origin URL; is the repo checked out?");
-  const stage = (0, import_node_fs2.mkdtempSync)((0, import_node_path2.join)((0, import_node_os.tmpdir)(), "ghpages-"));
-  try {
-    git(["init", "-q"], { cwd: stage });
-    git(["config", "user.name", "github-actions[bot]"], { cwd: stage });
-    git(["config", "user.email", "github-actions[bot]@users.noreply.github.com"], { cwd: stage });
-    git(["remote", "add", "origin", url], { cwd: stage });
-    git(["fetch", "-q", "origin", publishBranch], { cwd: stage, allowFail: true });
-    try {
-      git(["checkout", "-q", "-b", publishBranch, `origin/${publishBranch}`], { cwd: stage });
-    } catch {
-      git(["checkout", "-q", "--orphan", publishBranch], { cwd: stage });
-    }
-    git(["rm", "-rf", "-q", "."], { cwd: stage, allowFail: true });
-    const target = subfolder ? (0, import_node_path2.join)(stage, subfolder) : stage;
-    (0, import_node_fs2.mkdirSync)(target, { recursive: true });
-    copyContents(publishDir, target);
-    git(["add", "-A"], { cwd: stage });
-    const status = git(["status", "--porcelain"], { cwd: stage });
-    if (status.trim().length > 0) {
-      git(["commit", "-q", "-m", `Deploy wiki site (${(/* @__PURE__ */ new Date()).toISOString()})`], { cwd: stage });
-    }
-    git(["push", "-q", "origin", publishBranch], { cwd: stage });
-  } finally {
-    (0, import_node_fs2.rmSync)(stage, { recursive: true, force: true });
-  }
-}
-
 // index.js
 var DEFAULT_CATEGORIES2 = "overview,entities,concepts,flows,features,risks,reference";
-async function run2() {
+async function run() {
   const wikiDir = core.getInput("wiki-dir") || ".wiki";
   const outDir = core.getInput("out-dir") || "dist";
   const siteTitle = core.getInput("site-title");
   const githubRepo = core.getInput("github-repo") || process.env.GITHUB_REPOSITORY;
   const githubBranch = core.getInput("github-branch") || process.env.GITHUB_REF_NAME;
   const categories = (core.getInput("categories") || DEFAULT_CATEGORIES2).split(",").map((s) => s.trim()).filter(Boolean);
-  const publishBranch = core.getInput("publish-branch") || "gh-pages";
-  const subfolder = core.getInput("subfolder");
   if (!githubRepo) throw new Error("Could not determine github-repo (set the input or run in a GitHub workflow).");
-  const absWiki = (0, import_node_path3.resolve)(process.cwd(), wikiDir);
-  const absOut = (0, import_node_path3.resolve)(process.cwd(), outDir);
+  const absWiki = (0, import_node_path2.resolve)(process.cwd(), wikiDir);
+  const absOut = (0, import_node_path2.resolve)(process.cwd(), outDir);
   core.info(`Building wiki from ${absWiki} \u2192 ${absOut}`);
   const result = buildSite({
     wikiDir: absWiki,
@@ -78763,10 +78703,8 @@ async function run2() {
   if (result.brokenLinks.length) {
     core.warning(`${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(", ")}`);
   }
-  core.info(`Publishing to branch "${publishBranch}"${subfolder ? ` under "${subfolder}"` : ""}.`);
-  await publish({ publishDir: absOut, publishBranch, subfolder });
 }
-run2().catch((err) => core.setFailed(err.message));
+run().catch((err) => core.setFailed(err.message));
 /*! Bundled license information:
 
 undici/lib/fetch/body.js:
