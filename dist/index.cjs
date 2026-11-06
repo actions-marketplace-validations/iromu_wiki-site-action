@@ -78697,15 +78697,24 @@ function copyContents(src, dest) {
     (0, import_node_fs2.cpSync)((0, import_node_path2.join)(src, entry), (0, import_node_path2.join)(dest, entry), { recursive: true });
   }
 }
+function originUrl() {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY;
+  const server = process.env.GITHUB_SERVER_URL || "https://github.com";
+  if (token && repo) {
+    return server.replace(/^https:\/\//, `https://x-access-token:${token}@`) + `/${repo}.git`;
+  }
+  return git(["remote", "get-url", "origin"]).trim();
+}
 async function publish({ publishDir, publishBranch = "gh-pages", subfolder = "" }) {
-  const originUrl = git(["remote", "get-url", "origin"]).trim();
-  if (!originUrl) throw new Error('No "origin" remote found; is the repo checked out?');
+  const url = originUrl();
+  if (!url) throw new Error("Could not determine the origin URL; is the repo checked out?");
   const stage = (0, import_node_fs2.mkdtempSync)((0, import_node_path2.join)((0, import_node_os.tmpdir)(), "ghpages-"));
   try {
     git(["init", "-q"], { cwd: stage });
     git(["config", "user.name", "github-actions[bot]"], { cwd: stage });
     git(["config", "user.email", "github-actions[bot]@users.noreply.github.com"], { cwd: stage });
-    git(["remote", "add", "origin", originUrl], { cwd: stage });
+    git(["remote", "add", "origin", url], { cwd: stage });
     git(["fetch", "-q", "origin", publishBranch], { cwd: stage, allowFail: true });
     try {
       git(["checkout", "-q", "-b", publishBranch, `origin/${publishBranch}`], { cwd: stage });
