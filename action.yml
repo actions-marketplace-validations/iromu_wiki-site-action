@@ -1,0 +1,49 @@
+name: Wiki Site Action
+description: >-
+  Build a .wiki/ knowledge base into a static site (category sidebar, per-page
+  TOC, code highlighting, client-side search) and publish it to a branch for
+  GitHub Pages.
+
+inputs:
+  wiki-dir:
+    description: Path to the source wiki directory, relative to the repo root.
+    required: false
+    default: .wiki
+  out-dir:
+    description: Path to write the built site into, relative to the repo root.
+    required: false
+    default: dist
+  site-title:
+    description: >-
+      Site title used for the brand, page titles, and the 404 page. Defaults to
+      the `title` field of the wiki's index page.
+    required: false
+    default: ''
+  github-repo:
+    description: owner/repo used for the "view source" links. Defaults to the current repository.
+    required: false
+    default: ''
+  github-branch:
+    description: Branch used for the "view source" links. Defaults to the current branch.
+    required: false
+    default: ''
+  categories:
+    description: >-
+      Comma-separated, ordered top-level directory names for the sidebar.
+      Directories not listed are appended after these.
+    required: false
+    default: overview,entities,concepts,flows,features,risks,reference
+  publish-branch:
+    description: Branch to publish the built site to.
+    required: false
+    default: gh-pages
+  subfolder:
+    description: >-
+      Optional subpath within the publish branch to place the site (e.g. "docs"
+      for a project page). Leave empty to publish to the branch root.
+    required: false
+    default: ''
+
+runs:
+  using: node24
+  main: dist/index.cjs

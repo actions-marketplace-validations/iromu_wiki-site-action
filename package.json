@@ -1,0 +1,23 @@
+{
+  "name": "wiki-site-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action that builds a .wiki/ knowledge base into a static site and publishes it to the gh-pages branch.",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "scripts": {
+    "build": "esbuild index.js --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.cjs",
+    "test": "node test/smoke.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "gray-matter": "^4.0.3",
+    "highlight.js": "^11.11.1",
+    "marked": "^15.0.12",
+    "marked-highlight": "^2.2.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
