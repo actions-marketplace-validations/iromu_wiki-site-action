@@ -26,6 +26,8 @@ The two shapes of configuration the action consumes: the workflow inputs
 | `github-repo`    | `GITHUB_REPOSITORY`                                  | `owner/repo` for source links; required. |
 | `github-branch`  | `GITHUB_REF_NAME`                                    | Branch for source links. |
 | `categories`     | `overview,entities,concepts,flows,features,risks,reference` | Ordered sidebar dirs; unlisted dirs are appended. |
+| `highlight-theme`| `github`                                               | highlight.js theme for code blocks (see `dist/highlight-themes/`); unknown values fall back to `github`. |
+| `custom-highlight-css` | _(empty)_                                     | Path to a CSS file appended after the theme to override/extend it. |
 
 `index.js` splits `categories` on commas, trims, and drops empties. Note the
 default `categories` string is duplicated in `action.yml` and in

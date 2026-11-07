@@ -11,7 +11,7 @@ The generated site includes:
 - a category sidebar (grouped by top-level wiki directory)
 - per-page table of contents
 - `[[wiki-link]]` resolution (broken links are flagged, not dropped)
-- syntax highlighting (highlight.js "GitHub" theme)
+- syntax highlighting (any highlight.js theme from `dist/highlight-themes/`, default "GitHub", with optional custom CSS overrides)
 - lightweight client-side full-text search
 - a 404 page
 
@@ -88,6 +88,8 @@ jobs:
 | `github-repo` | _(current repo)_                                     | `owner/repo` used for "view source" links.                    |
 | `github-branch`| _(current branch)_                                   | Branch used for "view source" links.                          |
 | `categories`  | `overview,entities,concepts,flows,features,risks,reference` | Comma-separated sidebar order; unlisted dirs are appended. |
+| `highlight-theme` | `github`                                    | highlight.js theme for code blocks (see `dist/highlight-themes/`); unknown values fall back to `github`. |
+| `custom-highlight-css` | _(empty)_                              | Path to a CSS file appended after the theme to override or extend it. |
 
 ### Frontmatter conventions
 

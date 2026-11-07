@@ -47,6 +47,32 @@ try {
   const fooHtml = readFileSync(join(out, 'concepts/foo.html'), 'utf8');
   assert(fooHtml.includes('../style.css'), 'nested page uses ../ asset root');
   assert(fooHtml.includes('href="https://github.com/iromu/test/blob/main/src/foo.java"'), 'source chip link correct');
+
+  console.log('theme:');
+  const defaultCss = readFileSync(join(out, 'highlight.css'), 'utf8');
+  const outMono = join(root, 'dist-monokai');
+  const monoResult = buildSite({ wikiDir: wiki, outDir: outMono, githubRepo: 'iromu/test', githubBranch: 'main', highlightTheme: 'monokai' });
+  const monoCss = readFileSync(join(outMono, 'highlight.css'), 'utf8');
+  assert(monoResult.highlightTheme === 'monokai', `monokai theme selected (got "${monoResult.highlightTheme}")`);
+  assert(monoCss !== defaultCss, 'monokai highlight.css differs from default github');
+  const outUnknown = join(root, 'dist-unknown');
+  const unknownResult = buildSite({ wikiDir: wiki, outDir: outUnknown, githubRepo: 'iromu/test', githubBranch: 'main', highlightTheme: 'nope-theme' });
+  assert(unknownResult.highlightTheme === 'github', `unknown theme falls back to github (got "${unknownResult.highlightTheme}")`);
+  assert(readFileSync(join(outUnknown, 'highlight.css'), 'utf8') === defaultCss, 'unknown theme writes the github css');
+
+  console.log('custom css override:');
+  const customCssFile = join(root, 'custom.css');
+  writeFileSync(customCssFile, '.hljs-keyword { color: #ff00ff; }\n');
+  const outCustom = join(root, 'dist-custom');
+  const customResult = buildSite({ wikiDir: wiki, outDir: outCustom, githubRepo: 'iromu/test', githubBranch: 'main', customHighlightCssPath: customCssFile });
+  const customCss = readFileSync(join(outCustom, 'highlight.css'), 'utf8');
+  assert(customResult.customHighlightCssApplied === true, 'custom css applied');
+  assert(customCss.includes(defaultCss), 'base theme css present before the override');
+  assert(customCss.includes('.hljs-keyword { color: #ff00ff; }'), 'custom override appended after base theme');
+  const outMissing = join(root, 'dist-missing');
+  const missingResult = buildSite({ wikiDir: wiki, outDir: outMissing, githubRepo: 'iromu/test', githubBranch: 'main', customHighlightCssPath: join(root, 'nope.css') });
+  assert(missingResult.customHighlightCssApplied === false, 'missing custom css not applied');
+  assert(typeof missingResult.customHighlightCssError === 'string' && missingResult.customHighlightCssError.length > 0, 'missing custom css reports an error');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

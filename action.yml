@@ -34,6 +34,20 @@ inputs:
       Directories not listed are appended after these.
     required: false
     default: overview,entities,concepts,flows,features,risks,reference
+  highlight-theme:
+    description: >-
+      highlight.js theme for code blocks (e.g. github, github-dark,
+      atom-one-dark, monokai, xcode, vs, default, obsidian). Unknown values
+      fall back to the default. Available themes live in dist/highlight-themes/.
+    required: false
+    default: github
+  custom-highlight-css:
+    description: >-
+      Path (relative to the repo root) to a CSS file appended after the
+      selected highlight theme, so it can override or extend the theme's rules.
+      Leave empty for no overrides.
+    required: false
+    default: ''
 
 runs:
   using: node24

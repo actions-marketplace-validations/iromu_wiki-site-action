@@ -19,6 +19,8 @@
  *   --title <t>     site title override   (default: from the index page)
  *   --repo <o/r>    owner/repo for source links (default: read from git)
  *   --branch <b>    branch for source links (default: read from git)
+ *   --theme <n>     highlight.js theme (default: github)
+ *   --override <p>  path to a CSS file appended after the theme (overrides it)
  *   --watch         rebuild on wiki changes
  *   --open          open the browser after the first build
  */
@@ -33,7 +35,7 @@ import { buildSite } from './lib/build-site.js';
 function parseArgs(argv) {
   const opts = {
     wiki: '.wiki', out: '.preview', port: 4173, host: '127.0.0.1',
-    title: '', repo: '', branch: '', watch: false, open: false,
+    title: '', repo: '', branch: '', theme: '', override: '', watch: false, open: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -46,6 +48,8 @@ function parseArgs(argv) {
       case '--title': opts.title = next(); break;
       case '--repo': opts.repo = next(); break;
       case '--branch': opts.branch = next(); break;
+      case '--theme': case '--highlight-theme': opts.theme = next(); break;
+      case '--override': case '--custom-css': opts.override = next(); break;
       case '--watch': opts.watch = true; break;
       case '--open': opts.open = true; break;
       default:
@@ -76,14 +80,16 @@ function resolveBranch() {
 }
 
 // --- build -----------------------------------------------------------------
-function doBuild({ wikiDir, outDir, repo, branch, title }) {
-  return buildSite({ wikiDir, outDir, githubRepo: repo, githubBranch: branch, siteTitle: title });
+function doBuild({ wikiDir, outDir, repo, branch, title, theme, override }) {
+  return buildSite({ wikiDir, outDir, githubRepo: repo, githubBranch: branch, siteTitle: title, highlightTheme: theme, customHighlightCssPath: override });
 }
 
 function buildAndReport(cfg) {
   const t0 = Date.now();
   const result = doBuild(cfg);
-  console.log(`\n✔ built ${result.pages} page(s) in ${Date.now() - t0}ms (site title: "${result.siteTitle}")`);
+  console.log(`\n✔ built ${result.pages} page(s) in ${Date.now() - t0}ms (site title: "${result.siteTitle}", theme: "${result.highlightTheme}")`);
+  if (result.customHighlightCssApplied) console.log('  applied custom highlight CSS override');
+  if (result.customHighlightCssError) console.warn(`  ⚠ ${result.customHighlightCssError}`);
   if (result.brokenLinks.length) {
     console.warn(`  ⚠ ${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(', ')}`);
   }
@@ -163,7 +169,8 @@ if (!fs.existsSync(absWiki)) {
   process.exit(1);
 }
 
-const cfg = { wikiDir: absWiki, outDir: absOut, repo, branch, title: opts.title };
+const absOverride = opts.override ? resolve(process.cwd(), opts.override) : '';
+const cfg = { wikiDir: absWiki, outDir: absOut, repo, branch, title: opts.title, theme: opts.theme, override: absOverride };
 buildAndReport(cfg);
 
 const server = createServer(absOut);

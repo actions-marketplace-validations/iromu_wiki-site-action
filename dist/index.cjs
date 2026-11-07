@@ -78050,6 +78050,10 @@ var es_default = import_lib.default;
 
 // lib/build-site.js
 var DEFAULT_CATEGORIES = ["overview", "entities", "concepts", "flows", "features", "risks", "reference"];
+var DEFAULT_THEME = "github";
+function resolveThemesDir() {
+  return (0, import_node_path.join)(process.cwd(), "dist", "highlight-themes");
+}
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
@@ -78509,92 +78513,6 @@ var SITE_JS = `(function () {
   });
 })();
 `;
-var HIGHLIGHT_CSS = `pre code.hljs {
-  display: block;
-  overflow-x: auto;
-  padding: 1em
-}
-code.hljs {
-  padding: 3px 5px
-}
-.hljs {
-  color: #24292e;
-  background: #ffffff
-}
-.hljs-doctag,
-.hljs-keyword,
-.hljs-meta .hljs-keyword,
-.hljs-template-tag,
-.hljs-template-variable,
-.hljs-type,
-.hljs-variable.language_ {
-  color: #d73a49
-}
-.hljs-title,
-.hljs-title.class_,
-.hljs-title.class_.inherited__,
-.hljs-title.function_ {
-  color: #6f42c1
-}
-.hljs-attr,
-.hljs-attribute,
-.hljs-literal,
-.hljs-meta,
-.hljs-number,
-.hljs-operator,
-.hljs-variable,
-.hljs-selector-attr,
-.hljs-selector-class,
-.hljs-selector-id {
-  color: #005cc5
-}
-.hljs-regexp,
-.hljs-string,
-.hljs-meta .hljs-string {
-  color: #032f62
-}
-.hljs-built_in,
-.hljs-symbol {
-  color: #e36209
-}
-.hljs-comment,
-.hljs-code,
-.hljs-formula {
-  color: #6a737d
-}
-.hljs-name,
-.hljs-quote,
-.hljs-selector-tag,
-.hljs-selector-pseudo {
-  color: #22863a
-}
-.hljs-subst {
-  color: #24292e
-}
-.hljs-section {
-  color: #005cc5;
-  font-weight: bold
-}
-.hljs-bullet {
-  color: #735c0f
-}
-.hljs-emphasis {
-  color: #24292e;
-  font-style: italic
-}
-.hljs-strong {
-  color: #24292e;
-  font-weight: bold
-}
-.hljs-addition {
-  color: #22863a;
-  background-color: #f0fff4
-}
-.hljs-deletion {
-  color: #b31d28;
-  background-color: #ffeef0
-}
-`;
 function notFoundHtml(siteTitle) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -78619,7 +78537,7 @@ function notFoundHtml(siteTitle) {
 </html>
 `;
 }
-function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES }) {
+function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES, highlightTheme = DEFAULT_THEME, customHighlightCssPath = "" }) {
   if (!(0, import_node_fs.existsSync)(wikiDir)) {
     throw new Error(`Wiki directory not found: ${wikiDir}`);
   }
@@ -78664,17 +78582,40 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     const searchText = p.content.replace(/```[\s\S]*?```/g, " ").replace(/[#*`>|_~\[\]]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
     searchIndex.push({ slug: p.slug, title: p.title, path: p.outRelPath, category: p.category, text: searchText });
   }
+  const themesDir = resolveThemesDir();
+  const requestedTheme = (highlightTheme || "").toLowerCase().trim();
+  const themeUsed = requestedTheme && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${requestedTheme}.css`)) ? requestedTheme : DEFAULT_THEME;
+  const baseThemeFile = (0, import_node_path.join)(themesDir, `${themeUsed}.css`);
+  if (!(0, import_node_fs.existsSync)(baseThemeFile)) {
+    throw new Error(`Highlight theme not found: ${baseThemeFile} (themes live in dist/highlight-themes/)`);
+  }
+  let highlightCss = (0, import_node_fs.readFileSync)(baseThemeFile, "utf8");
+  let customCss = "";
+  let customCssError = null;
+  if (customHighlightCssPath) {
+    if ((0, import_node_fs.existsSync)(customHighlightCssPath)) {
+      customCss = (0, import_node_fs.readFileSync)(customHighlightCssPath, "utf8");
+    } else {
+      customCssError = `Custom highlight CSS not found: ${customHighlightCssPath}`;
+    }
+  }
+  if (customCss) highlightCss += `
+/* custom overrides (appended after the base theme) */
+${customCss}`;
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), STYLE_CSS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "site.js"), SITE_JS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "search-index.js"), `window.SEARCH_INDEX = ${JSON.stringify(searchIndex)};
 `);
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), HIGHLIGHT_CSS);
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), highlightCss);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "404.html"), notFoundHtml(resolvedTitle));
   return {
     pages: pages.length,
     outDir,
     siteTitle: resolvedTitle,
-    brokenLinks: [...brokenLinks]
+    brokenLinks: [...brokenLinks],
+    highlightTheme: themeUsed,
+    customHighlightCssApplied: Boolean(customCss),
+    customHighlightCssError: customCssError
   };
 }
 
@@ -78687,9 +78628,12 @@ async function run() {
   const githubRepo = core.getInput("github-repo") || process.env.GITHUB_REPOSITORY;
   const githubBranch = core.getInput("github-branch") || process.env.GITHUB_REF_NAME;
   const categories = (core.getInput("categories") || DEFAULT_CATEGORIES2).split(",").map((s) => s.trim()).filter(Boolean);
+  const highlightTheme = core.getInput("highlight-theme");
+  const customCssPath = core.getInput("custom-highlight-css");
   if (!githubRepo) throw new Error("Could not determine github-repo (set the input or run in a GitHub workflow).");
   const absWiki = (0, import_node_path2.resolve)(process.cwd(), wikiDir);
   const absOut = (0, import_node_path2.resolve)(process.cwd(), outDir);
+  const absCustomCss = customCssPath ? (0, import_node_path2.resolve)(process.cwd(), customCssPath) : "";
   core.info(`Building wiki from ${absWiki} \u2192 ${absOut}`);
   const result = buildSite({
     wikiDir: absWiki,
@@ -78697,9 +78641,17 @@ async function run() {
     githubRepo,
     githubBranch,
     siteTitle,
-    categories
+    categories,
+    highlightTheme,
+    customHighlightCssPath: absCustomCss
   });
-  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}").`);
+  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}", theme: "${result.highlightTheme}").`);
+  const requestedTheme = (highlightTheme || "").toLowerCase().trim();
+  if (requestedTheme && requestedTheme !== result.highlightTheme) {
+    core.warning(`Unknown highlight-theme "${highlightTheme}"; used "${result.highlightTheme}" instead.`);
+  }
+  if (result.customHighlightCssApplied) core.info(`Applied custom highlight CSS from "${customCssPath}".`);
+  if (result.customHighlightCssError) core.warning(result.customHighlightCssError);
   if (result.brokenLinks.length) {
     core.warning(`${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(", ")}`);
   }

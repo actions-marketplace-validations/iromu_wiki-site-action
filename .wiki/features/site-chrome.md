@@ -44,10 +44,14 @@ narrow screens, with a scrim) and closes the nav when a link is clicked.
 
 ## Assets
 
-Two stylesheets are inlined as JS constants and written out: `style.css`
-(layout, prose, sidebar, responsive breakpoint at 900px) and `highlight.css`
-(the highlight.js "GitHub" theme, inlined so the bundle has no runtime
-`node_modules` dependency). A minimal `404.html` is also written.
+Two stylesheets are written out: `style.css` (layout, prose, sidebar, responsive
+breakpoint at 900px) and `highlight.css`. The highlight CSS is one of the
+committed theme files under `dist/highlight-themes/` (default `github`, plus
+`github-dark`, `atom-one-dark`, `monokai`, `xcode`, `vs`, `default`, `obsidian`,
+`a11y-light/dark`, and more), chosen by the `highlight-theme` input and read at
+build time (resolved from the working directory). An optional `custom-highlight-css`
+file is appended after the base theme so it can override it. A minimal `404.html`
+is also written.
 
 ## Source chips
 

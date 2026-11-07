@@ -20,7 +20,8 @@ per-page state that `buildSite()` resets before each render.
 
 - **Syntax highlighting** — `marked-highlight` calls `highlight.js` when a code
   fence names a known language; otherwise the code is HTML-escaped. The result
-  uses the inlined "GitHub" light theme (see [[site-chrome]]).
+  is styled by the selected highlight theme (default `github`; see
+  [[site-chrome]] and the `highlight-theme` input).
 - **`[[wikilink]]` extension** — an inline tokenizer/renderer that turns
   `[[slug]]`, `[[slug|label]]`, and `[[slug#anchor]]` into internal links.
 
