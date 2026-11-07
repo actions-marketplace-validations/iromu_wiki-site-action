@@ -9,9 +9,11 @@ approach).
 The generated site includes:
 
 - a category sidebar (grouped by top-level wiki directory)
+- light/dark mode that follows the system theme, with a manual toggle
 - per-page table of contents
 - `[[wiki-link]]` resolution (broken links are flagged, not dropped)
-- syntax highlighting (any highlight.js theme from `dist/highlight-themes/`, default "GitHub", with optional custom CSS overrides)
+- syntax highlighting (separate light + dark highlight.js themes from `dist/highlight-themes/`, plus optional custom CSS overrides)
+- a GitHub icon linking to the repo, and an optional sidebar logo
 - lightweight client-side full-text search
 - a 404 page
 
@@ -88,8 +90,10 @@ jobs:
 | `github-repo` | _(current repo)_                                     | `owner/repo` used for "view source" links.                    |
 | `github-branch`| _(current branch)_                                   | Branch used for "view source" links.                          |
 | `categories`  | `overview,entities,concepts,flows,features,risks,reference` | Comma-separated sidebar order; unlisted dirs are appended. |
-| `highlight-theme` | `github`                                    | highlight.js theme for code blocks (see `dist/highlight-themes/`); unknown values fall back to `github`. |
+| `highlight-theme` | `github`                                    | highlight.js theme for code blocks in light mode (see `dist/highlight-themes/`); unknown values fall back to `github`. |
+| `highlight-theme-dark` | `github-dark`                          | highlight.js theme for code blocks in dark mode; unknown values fall back to `github-dark`. |
 | `custom-highlight-css` | _(empty)_                              | Path to a CSS file appended after the theme to override or extend it. |
+| `logo` | _(empty)_ | Path to a logo image shown in the sidebar next to the site title. |
 
 ### Frontmatter conventions
 

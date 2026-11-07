@@ -20,7 +20,9 @@
  *   --repo <o/r>    owner/repo for source links (default: read from git)
  *   --branch <b>    branch for source links (default: read from git)
  *   --theme <n>     highlight.js theme (default: github)
+ *   --theme-dark <n> dark-mode highlight theme (default: github-dark)
  *   --override <p>  path to a CSS file appended after the theme (overrides it)
+ *   --logo <p>      path to a logo image shown in the sidebar
  *   --watch         rebuild on wiki changes
  *   --open          open the browser after the first build
  */
@@ -35,7 +37,7 @@ import { buildSite } from './lib/build-site.js';
 function parseArgs(argv) {
   const opts = {
     wiki: '.wiki', out: '.preview', port: 4173, host: '127.0.0.1',
-    title: '', repo: '', branch: '', theme: '', override: '', watch: false, open: false,
+    title: '', repo: '', branch: '', theme: '', themeDark: '', override: '', logo: '', watch: false, open: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -49,7 +51,9 @@ function parseArgs(argv) {
       case '--repo': opts.repo = next(); break;
       case '--branch': opts.branch = next(); break;
       case '--theme': case '--highlight-theme': opts.theme = next(); break;
+      case '--theme-dark': case '--highlight-theme-dark': opts.themeDark = next(); break;
       case '--override': case '--custom-css': opts.override = next(); break;
+      case '--logo': opts.logo = next(); break;
       case '--watch': opts.watch = true; break;
       case '--open': opts.open = true; break;
       default:
@@ -80,14 +84,16 @@ function resolveBranch() {
 }
 
 // --- build -----------------------------------------------------------------
-function doBuild({ wikiDir, outDir, repo, branch, title, theme, override }) {
-  return buildSite({ wikiDir, outDir, githubRepo: repo, githubBranch: branch, siteTitle: title, highlightTheme: theme, customHighlightCssPath: override });
+function doBuild({ wikiDir, outDir, repo, branch, title, theme, themeDark, override, logo }) {
+  return buildSite({ wikiDir, outDir, githubRepo: repo, githubBranch: branch, siteTitle: title, highlightTheme: theme, highlightThemeDark: themeDark, customHighlightCssPath: override, logoPath: logo });
 }
 
 function buildAndReport(cfg) {
   const t0 = Date.now();
   const result = doBuild(cfg);
-  console.log(`\n✔ built ${result.pages} page(s) in ${Date.now() - t0}ms (site title: "${result.siteTitle}", theme: "${result.highlightTheme}")`);
+  console.log(`\n✔ built ${result.pages} page(s) in ${Date.now() - t0}ms (site title: "${result.siteTitle}", theme: light "${result.highlightTheme}" / dark "${result.highlightThemeDark}")`);
+  if (result.logo) console.log(`  logo: ${result.logo}`);
+  if (result.logoError) console.warn(`  ⚠ ${result.logoError}`);
   if (result.customHighlightCssApplied) console.log('  applied custom highlight CSS override');
   if (result.customHighlightCssError) console.warn(`  ⚠ ${result.customHighlightCssError}`);
   if (result.brokenLinks.length) {
@@ -170,7 +176,8 @@ if (!fs.existsSync(absWiki)) {
 }
 
 const absOverride = opts.override ? resolve(process.cwd(), opts.override) : '';
-const cfg = { wikiDir: absWiki, outDir: absOut, repo, branch, title: opts.title, theme: opts.theme, override: absOverride };
+const absLogo = opts.logo ? resolve(process.cwd(), opts.logo) : '';
+const cfg = { wikiDir: absWiki, outDir: absOut, repo, branch, title: opts.title, theme: opts.theme, themeDark: opts.themeDark, override: absOverride, logo: absLogo };
 buildAndReport(cfg);
 
 const server = createServer(absOut);

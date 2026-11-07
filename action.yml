@@ -41,11 +41,24 @@ inputs:
       fall back to the default. Available themes live in dist/highlight-themes/.
     required: false
     default: github
+  highlight-theme-dark:
+    description: >-
+      highlight.js theme for code blocks in dark mode (used when the visitor's
+      system theme is dark or the page toggle is set to dark). Unknown values
+      fall back to the default. Available themes live in dist/highlight-themes/.
+    required: false
+    default: github-dark
   custom-highlight-css:
     description: >-
       Path (relative to the repo root) to a CSS file appended after the
       selected highlight theme, so it can override or extend the theme's rules.
       Leave empty for no overrides.
+    required: false
+    default: ''
+  logo:
+    description: >-
+      Path (relative to the repo root) to a logo image shown in the sidebar
+      next to the site title. Copied into the output. Leave empty for none.
     required: false
     default: ''
 

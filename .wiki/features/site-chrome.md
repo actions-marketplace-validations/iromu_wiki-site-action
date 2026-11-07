@@ -19,8 +19,14 @@ makes the wiki navigable. These are the presentational builders in
 `buildSidebar` groups every non-home page by its top-level directory
 (category). Categories are ordered: the configured `categories` list first, then
 any extra directories appended, then each group's items sorted by title. The
-sidebar also carries the brand link, the search box, and a "Home" link. The
-active page gets an `.active` class.
+sidebar also carries the brand link (with an optional `logo` image when the
+`logo` input is set), the search box, and a "Home" link. The active page gets an
+`.active` class.
+
+A header row (`sidebar-top`) sits above the search box with two controls on the
+right: a **theme toggle** button (`#theme-toggle`) that flips light/dark, and a
+**GitHub icon** (`github-link`) that opens
+`https://github.com/<repo>/tree/<branch>` in a new tab.
 
 ## Table of contents
 
@@ -42,16 +48,27 @@ during parsing (headings at depth 2–3). Empty TOCs are omitted entirely.
 `site.js` also wires the hamburger menu toggle (opens the fixed sidebar on
 narrow screens, with a scrim) and closes the nav when a link is clicked.
 
+## Light/dark theme
+
+The site supports light and dark mode. An inline script in each page's `<head>`
+sets `data-theme` on `<html>` before paint — from `localStorage` if the visitor
+has toggled before, otherwise from `prefers-color-scheme` (so it follows the
+system theme by default). `style.css` defines the light palette in `:root` and
+overrides it under `html[data-theme="dark"]`. `site.js` wires the `#theme-toggle`
+button to flip the theme, persist the choice to `localStorage`, and switch which
+highlight stylesheet is active.
+
 ## Assets
 
-Two stylesheets are written out: `style.css` (layout, prose, sidebar, responsive
-breakpoint at 900px) and `highlight.css`. The highlight CSS is one of the
-committed theme files under `dist/highlight-themes/` (default `github`, plus
-`github-dark`, `atom-one-dark`, `monokai`, `xcode`, `vs`, `default`, `obsidian`,
-`a11y-light/dark`, and more), chosen by the `highlight-theme` input and read at
-build time (resolved from the working directory). An optional `custom-highlight-css`
-file is appended after the base theme so it can override it. A minimal `404.html`
-is also written.
+Three stylesheets are written out: `style.css` (layout, prose, sidebar,
+responsive breakpoint at 900px, plus the dark palette under
+`html[data-theme="dark"]`), `highlight.css` (the **light** code theme, chosen by
+`highlight-theme`, default `github`), and `highlight-dark.css` (the **dark** code
+theme, chosen by `highlight-theme-dark`, default `github-dark`). Both highlight
+files come from the committed themes under `dist/highlight-themes/` and are read
+at build time; an optional `custom-highlight-css` file is appended after each so
+it overrides both. A `logo` image is copied into the output when provided, and a
+minimal `404.html` is also written.
 
 ## Source chips
 

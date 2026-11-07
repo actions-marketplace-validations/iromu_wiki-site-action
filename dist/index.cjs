@@ -78051,8 +78051,13 @@ var es_default = import_lib.default;
 // lib/build-site.js
 var DEFAULT_CATEGORIES = ["overview", "entities", "concepts", "flows", "features", "risks", "reference"];
 var DEFAULT_THEME = "github";
+var DEFAULT_DARK_THEME = "github-dark";
 function resolveThemesDir() {
   return (0, import_node_path.join)(process.cwd(), "dist", "highlight-themes");
+}
+function resolveThemeFile(themesDir, requested, fallback) {
+  const key = (requested || "").toLowerCase().trim();
+  return key && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${key}.css`)) ? key : fallback;
 }
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -78142,7 +78147,7 @@ marked.use({
     }
   ]
 });
-function buildSidebar(pages, activeOutRelPath, root, categories, catLabels, siteTitle) {
+function buildSidebar(pages, activeOutRelPath, root, categories, catLabels, siteTitle, githubRepo, githubBranch, logoFile) {
   const isHome = (p) => p.slug === "index";
   const byCat = /* @__PURE__ */ new Map();
   for (const p of pages) {
@@ -78166,7 +78171,14 @@ ${links}    </div>
 `;
   }).join("");
   const homeCls = activeOutRelPath === "index.html" ? ' class="active"' : "";
-  return `<div class="brand"><a href="${root}index.html">${escapeHtml(siteTitle)}</a></div>
+  const logoImg = logoFile ? `<img class="brand-logo" src="${root}${logoFile}" alt="logo">` : "";
+  return `<div class="sidebar-top">
+    <div class="brand">${logoImg}<a href="${root}index.html">${escapeHtml(siteTitle)}</a></div>
+    <div class="sidebar-actions">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
+      <a class="github-link" href="https://github.com/${githubRepo}/tree/${githubBranch}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(githubRepo)} on GitHub" title="Open on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.001 8.001 0 0 1-5.45 7.59c-.39.07-.54-.17-.54-.38 0-.28.01-1.04.01-2.03 0-.72-.24-1.17-.7-1.42 2.28-.2 4.65-1.12 4.65-5.02 0-1.11-.39-2.02-1.03-2.73.1-.26.45-1.29-.1-2.69 0 0-.84-.28-2.75 1.05a9.34 9.34 0 0 0-5 0c-1.91-1.33-2.75-1.05-2.75-1.05-.55 1.4-.2 2.43-.1 2.69-.64.71-1.03 1.62-1.03 2.73 0 3.9 2.36 4.82 4.65 5.02-.29.25-.54.71-.63 1.37-.57.27-1.96.71-2.93-.85a5.473 5.473 0 0 1-.38-2c0 0-.78.21-.25 1.03.26.48.77 1.38 2.6 1.35a9.26 9.26 0 0 1-5.22-1.78 9.416 9.416 0 0 1 0-13.41A8.009 8.009 0 0 1 8 0z"></path></svg></a>
+    </div>
+  </div>
   <div class="search">
     <input id="search" type="search" placeholder="Search the wiki\u2026" autocomplete="off" spellcheck="false" aria-label="Search">
     <ul id="search-results" class="search-results" role="listbox"></ul>
@@ -78202,8 +78214,10 @@ function buildPageHtml({ page, bodyHtml, sidebar, root, tocHtml, catLabels, site
   <title>${escapeHtml(docTitle)}</title>
   <meta name="description" content="${escapeHtml(page.title)} \u2014 ${escapeHtml(siteTitle)}">
   <link rel="stylesheet" href="${root}style.css">
-  <link rel="stylesheet" href="${root}highlight.css">
+  <link rel="stylesheet" href="${root}highlight.css" data-hl="light">
+  <link rel="stylesheet" href="${root}highlight-dark.css" data-hl="dark">
   <script>window.SITE = { root: "${root}" };</script>
+  <script>(function(){var d=document.documentElement;var t;try{t=localStorage.getItem('wiki-theme');}catch(e){}if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}d.setAttribute('data-theme',t);var ls=document.querySelectorAll('link[data-hl]');for(var i=0;i<ls.length;i++){if(ls[i].getAttribute('data-hl')!==t)ls[i].disabled=true;}})();</script>
 </head>
 <body>
   <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">&#9776; Menu</button>
@@ -78251,6 +78265,17 @@ var STYLE_CSS = `:root {
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
+html[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg-soft: #161b22;
+  --fg: #e6edf3;
+  --fg-muted: #8b949e;
+  --border: #30363d;
+  --border-soft: #21262d;
+  --accent: #58a6ff;
+  --accent-soft: #12263f;
+  --code-bg: #161b22;
+}
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -78280,7 +78305,19 @@ a:hover { text-decoration: underline; }
   flex-direction: column;
   gap: 16px;
 }
-.brand a { font-weight: 700; font-size: 17px; color: var(--fg); }
+.sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand-logo { height: 28px; width: auto; flex: 0 0 auto; }
+.sidebar-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.theme-toggle, .github-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--fg); cursor: pointer; text-decoration: none;
+}
+.theme-toggle:hover, .github-link:hover { border-color: var(--accent); color: var(--accent); }
+.theme-toggle svg, .github-link svg { width: 16px; height: 16px; fill: currentColor; }
+.brand a { font-weight: 700; font-size: 17px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand a:hover { text-decoration: none; }
 .search { position: relative; }
 .search input {
@@ -78446,6 +78483,27 @@ var SITE_JS = `(function () {
   'use strict';
   var root = (window.SITE && window.SITE.root) || '';
 
+  // ---- light/dark theme toggle (initial theme set by the inline head script) ----
+  var rootEl = document.documentElement;
+  var themeLinks = Array.prototype.slice.call(document.querySelectorAll('link[data-hl]'));
+  var SUN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 14a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 14zm6-6a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 1-.5.5zM2 8a.5.5 0 0 1-.5.5v2A.5.5 0 0 1 0 10V8a.5.5 0 0 1 .5-.5h2A.5.5 0 0 1 2 8zm12 0h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z"/></svg>';
+  var MOON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.598 5.534a.748.748 0 0 1 .129.815 7.418 7.418 0 0 1-.892 2.257 7.418 7.418 0 0 1-1.122 1.494.749.749 0 0 1-.815.129 7.418 7.418 0 0 1-2.257-.892 7.418 7.418 0 0 1-1.494-1.122.749.749 0 0 1-.129-.815 7.418 7.418 0 0 1 .892-2.257 7.418 7.418 0 0 1 1.122-1.494.749.749 0 0 1 .815-.129 7.418 7.418 0 0 1 2.257.892 7.418 7.418 0 0 1 1.494 1.122zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm4-8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>';
+  function currentTheme() { return rootEl.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function applyTheme(t) {
+    rootEl.setAttribute('data-theme', t);
+    for (var i = 0; i < themeLinks.length; i++) themeLinks[i].disabled = themeLinks[i].getAttribute('data-hl') !== t;
+  }
+  var themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    themeBtn.innerHTML = currentTheme() === 'dark' ? SUN : MOON;
+    themeBtn.addEventListener('click', function () {
+      var t = currentTheme() === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('wiki-theme', t); } catch (e) {}
+      applyTheme(t);
+      themeBtn.innerHTML = t === 'dark' ? SUN : MOON;
+    });
+  }
+
   // ---- mobile nav toggle ----
   var toggle = document.querySelector('.nav-toggle');
   var sidebar = document.querySelector('.sidebar');
@@ -78537,7 +78595,7 @@ function notFoundHtml(siteTitle) {
 </html>
 `;
 }
-function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES, highlightTheme = DEFAULT_THEME, customHighlightCssPath = "" }) {
+function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES, highlightTheme = DEFAULT_THEME, highlightThemeDark = DEFAULT_DARK_THEME, customHighlightCssPath = "", logoPath = "" }) {
   if (!(0, import_node_fs.existsSync)(wikiDir)) {
     throw new Error(`Wiki directory not found: ${wikiDir}`);
   }
@@ -78566,6 +78624,16 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   const catLabels = Object.fromEntries(categories.map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)]));
   slugMap = Object.fromEntries(pages.map((p) => [p.slug, p]));
   brokenLinks = /* @__PURE__ */ new Set();
+  let logoFile = "";
+  let logoError = null;
+  if (logoPath) {
+    if ((0, import_node_fs.existsSync)(logoPath)) {
+      logoFile = (0, import_node_path.basename)(logoPath);
+      (0, import_node_fs.copyFileSync)(logoPath, (0, import_node_path.join)(outDir, logoFile));
+    } else {
+      logoError = `Logo not found: ${logoPath}`;
+    }
+  }
   const searchIndex = [];
   for (const p of pages) {
     currentPageDir = (0, import_node_path.dirname)(p.outRelPath);
@@ -78573,7 +78641,7 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     usedHeadingIds = /* @__PURE__ */ new Set();
     const bodyHtml = marked.parse(p.content);
     const root = rootPrefix(p.outRelPath);
-    const sidebar = buildSidebar(pages, p.outRelPath, root, categories, catLabels, resolvedTitle);
+    const sidebar = buildSidebar(pages, p.outRelPath, root, categories, catLabels, resolvedTitle, githubRepo, githubBranch, logoFile);
     const tocHtml = buildTocHtml(toc);
     const html2 = buildPageHtml({ page: p, bodyHtml, sidebar, root, tocHtml, catLabels, siteTitle: resolvedTitle, githubRepo, githubBranch });
     const outPath = (0, import_node_path.join)(outDir, p.outRelPath);
@@ -78583,13 +78651,13 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     searchIndex.push({ slug: p.slug, title: p.title, path: p.outRelPath, category: p.category, text: searchText });
   }
   const themesDir = resolveThemesDir();
-  const requestedTheme = (highlightTheme || "").toLowerCase().trim();
-  const themeUsed = requestedTheme && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${requestedTheme}.css`)) ? requestedTheme : DEFAULT_THEME;
-  const baseThemeFile = (0, import_node_path.join)(themesDir, `${themeUsed}.css`);
-  if (!(0, import_node_fs.existsSync)(baseThemeFile)) {
-    throw new Error(`Highlight theme not found: ${baseThemeFile} (themes live in dist/highlight-themes/)`);
+  const lightTheme = resolveThemeFile(themesDir, highlightTheme, DEFAULT_THEME);
+  const darkTheme = resolveThemeFile(themesDir, highlightThemeDark, DEFAULT_DARK_THEME);
+  const lightThemeFile = (0, import_node_path.join)(themesDir, `${lightTheme}.css`);
+  const darkThemeFile = (0, import_node_path.join)(themesDir, `${darkTheme}.css`);
+  if (!(0, import_node_fs.existsSync)(lightThemeFile) || !(0, import_node_fs.existsSync)(darkThemeFile)) {
+    throw new Error(`Highlight theme not found in ${themesDir} (light: ${lightTheme}, dark: ${darkTheme})`);
   }
-  let highlightCss = (0, import_node_fs.readFileSync)(baseThemeFile, "utf8");
   let customCss = "";
   let customCssError = null;
   if (customHighlightCssPath) {
@@ -78599,23 +78667,27 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
       customCssError = `Custom highlight CSS not found: ${customHighlightCssPath}`;
     }
   }
-  if (customCss) highlightCss += `
+  const withCustom = (css) => customCss ? `${css}
 /* custom overrides (appended after the base theme) */
-${customCss}`;
+${customCss}` : css;
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), STYLE_CSS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "site.js"), SITE_JS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "search-index.js"), `window.SEARCH_INDEX = ${JSON.stringify(searchIndex)};
 `);
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), highlightCss);
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), withCustom((0, import_node_fs.readFileSync)(lightThemeFile, "utf8")));
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight-dark.css"), withCustom((0, import_node_fs.readFileSync)(darkThemeFile, "utf8")));
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "404.html"), notFoundHtml(resolvedTitle));
   return {
     pages: pages.length,
     outDir,
     siteTitle: resolvedTitle,
     brokenLinks: [...brokenLinks],
-    highlightTheme: themeUsed,
+    highlightTheme: lightTheme,
+    highlightThemeDark: darkTheme,
     customHighlightCssApplied: Boolean(customCss),
-    customHighlightCssError: customCssError
+    customHighlightCssError: customCssError,
+    logo: logoFile,
+    logoError
   };
 }
 
@@ -78629,11 +78701,14 @@ async function run() {
   const githubBranch = core.getInput("github-branch") || process.env.GITHUB_REF_NAME;
   const categories = (core.getInput("categories") || DEFAULT_CATEGORIES2).split(",").map((s) => s.trim()).filter(Boolean);
   const highlightTheme = core.getInput("highlight-theme");
+  const highlightThemeDark = core.getInput("highlight-theme-dark");
   const customCssPath = core.getInput("custom-highlight-css");
+  const logoPath = core.getInput("logo");
   if (!githubRepo) throw new Error("Could not determine github-repo (set the input or run in a GitHub workflow).");
   const absWiki = (0, import_node_path2.resolve)(process.cwd(), wikiDir);
   const absOut = (0, import_node_path2.resolve)(process.cwd(), outDir);
   const absCustomCss = customCssPath ? (0, import_node_path2.resolve)(process.cwd(), customCssPath) : "";
+  const absLogo = logoPath ? (0, import_node_path2.resolve)(process.cwd(), logoPath) : "";
   core.info(`Building wiki from ${absWiki} \u2192 ${absOut}`);
   const result = buildSite({
     wikiDir: absWiki,
@@ -78643,15 +78718,23 @@ async function run() {
     siteTitle,
     categories,
     highlightTheme,
-    customHighlightCssPath: absCustomCss
+    highlightThemeDark,
+    customHighlightCssPath: absCustomCss,
+    logoPath: absLogo
   });
-  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}", theme: "${result.highlightTheme}").`);
+  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}", theme: light "${result.highlightTheme}" / dark "${result.highlightThemeDark}").`);
   const requestedTheme = (highlightTheme || "").toLowerCase().trim();
   if (requestedTheme && requestedTheme !== result.highlightTheme) {
     core.warning(`Unknown highlight-theme "${highlightTheme}"; used "${result.highlightTheme}" instead.`);
   }
+  const requestedDark = (highlightThemeDark || "").toLowerCase().trim();
+  if (requestedDark && requestedDark !== result.highlightThemeDark) {
+    core.warning(`Unknown highlight-theme-dark "${highlightThemeDark}"; used "${result.highlightThemeDark}" instead.`);
+  }
   if (result.customHighlightCssApplied) core.info(`Applied custom highlight CSS from "${customCssPath}".`);
   if (result.customHighlightCssError) core.warning(result.customHighlightCssError);
+  if (result.logo) core.info(`Using logo "${logoPath}".`);
+  if (result.logoError) core.warning(result.logoError);
   if (result.brokenLinks.length) {
     core.warning(`${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(", ")}`);
   }
