@@ -75811,11 +75811,11 @@ var require_lib2 = __commonJS({
   }
 });
 
-// index.js
+// src/index.js
 var core = __toESM(require_core(), 1);
 var import_node_path2 = require("node:path");
 
-// lib/build-site.js
+// src/build-site.js
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
 
@@ -77955,7 +77955,7 @@ var parseInline = marked.parseInline;
 var parser = _Parser.parse;
 var lexer = _Lexer.lex;
 
-// lib/build-site.js
+// src/build-site.js
 var import_gray_matter = __toESM(require_gray_matter(), 1);
 
 // node_modules/marked-highlight/src/index.js
@@ -78048,7 +78048,7 @@ function escape3(html2, encode) {
 var import_lib = __toESM(require_lib2(), 1);
 var es_default = import_lib.default;
 
-// lib/build-site.js
+// src/build-site.js
 var DEFAULT_CATEGORIES = ["overview", "entities", "concepts", "flows", "features", "risks", "reference"];
 var DEFAULT_THEME = "github";
 var DEFAULT_DARK_THEME = "github-dark";
@@ -78057,7 +78057,124 @@ function resolveThemesDir() {
 }
 function resolveThemeFile(themesDir, requested, fallback) {
   const key = (requested || "").toLowerCase().trim();
-  return key && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${key}.css`)) ? key : fallback;
+  return key && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${key}.min.css`)) ? key : fallback;
+}
+var NAMED_COLORS = {
+  navy: "#000080",
+  silver: "#c0c0c0",
+  white: "#ffffff",
+  black: "#000000",
+  maroon: "#800000",
+  teal: "#008080",
+  olive: "#808000",
+  gray: "#808080",
+  grey: "#808080",
+  aqua: "#00ffff",
+  lime: "#00ff00",
+  yellow: "#ffff00",
+  red: "#ff0000",
+  blue: "#0000ff",
+  fuchsia: "#ff00ff",
+  purple: "#800080",
+  orange: "#ffa500",
+  gold: "#ffd700"
+};
+function parseColor(value) {
+  if (!value) return null;
+  const s = value.trim();
+  let m = s.match(/^#([0-9a-f]{3})$/i);
+  if (m) {
+    const h = m[1];
+    return { r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16) };
+  }
+  m = s.match(/^#([0-9a-f]{6})$/i);
+  if (m) {
+    const h = m[1];
+    return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+  }
+  m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (m) {
+    const p = m[1].split(/[\s,]/).map(parseFloat);
+    if (p.length >= 3) return { r: p[0], g: p[1], b: p[2] };
+  }
+  m = s.match(/^hsl\(([^)]+)\)$/i);
+  if (m) {
+    const p = m[1].split(/[\s,/]/).map(parseFloat);
+    const h = p[0] / 360, l = p[2] / 100, sat = p.length > 1 ? p[1] / 100 : 0;
+    const a = sat * Math.min(l, 1 - l);
+    const f = (n) => {
+      const k = (n + h * 12) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
+  }
+  const named = NAMED_COLORS[s.toLowerCase()];
+  return named ? parseColor(named) : null;
+}
+function resolveThemeColor(css, value, depth = 0) {
+  if (!value || depth > 4) return null;
+  const v = value.trim();
+  const varMatch = v.match(/^var\(\s*(--[a-z0-9-]+)\s*\)$/i);
+  if (varMatch) {
+    const def2 = css.match(new RegExp(varMatch[1] + "\\s*:\\s*([^;{}]+)"));
+    return def2 ? resolveThemeColor(css, def2[1], depth + 1) : null;
+  }
+  const urlMatch = v.match(/url\([^)]*\)\s*(\S+)/);
+  if (urlMatch) return parseColor(urlMatch[1]);
+  return parseColor(v);
+}
+function luminance(c) {
+  return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+}
+function mixColor(a, b, t) {
+  return { r: Math.round(a.r + (b.r - a.r) * t), g: Math.round(a.g + (b.g - a.g) * t), b: Math.round(a.b + (b.b - a.b) * t) };
+}
+function toHex(c) {
+  return "#" + [c.r, c.g, c.b].map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");
+}
+function derivePagePalette(themeCss) {
+  const stripped = themeCss.replace(/\/\*[\s\S]*?\*\//g, "");
+  const base = stripped.match(/\.hljs\s*\{([^}]*background[^}]*)\}/);
+  if (!base) return null;
+  const block2 = base[1];
+  const bg = (block2.match(/(?:^|;)\s*background(?:-color)?:\s*([^;{}]+)/) || [])[1];
+  const fg = (block2.match(/(?:^|;)\s*color:\s*([^;{}]+)/) || [])[1];
+  let B = resolveThemeColor(stripped, bg);
+  let F = resolveThemeColor(stripped, fg);
+  const WHITE = { r: 255, g: 255, b: 255 }, BLACK = { r: 0, g: 0, b: 0 };
+  if (!B && F) B = luminance(F) > 0.5 ? BLACK : WHITE;
+  if (!F && B) F = luminance(B) > 0.5 ? BLACK : WHITE;
+  if (!B || !F) return null;
+  const light = luminance(B) > 0.5;
+  const nudge = light ? BLACK : WHITE;
+  return {
+    "--bg": toHex(B),
+    "--bg-soft": toHex(mixColor(B, nudge, light ? 0.03 : 0.05)),
+    "--fg": toHex(F),
+    "--fg-muted": toHex(mixColor(F, B, light ? 0.45 : 0.35)),
+    "--border": toHex(mixColor(B, nudge, light ? 0.16 : 0.14)),
+    "--border-soft": toHex(mixColor(B, nudge, light ? 0.09 : 0.07)),
+    "--code-bg": toHex(mixColor(B, nudge, light ? 0.03 : 0.05))
+  };
+}
+function buildPagePaletteCss({ lightCss, darkCss, lightTheme, darkTheme }) {
+  const light = derivePagePalette(lightCss);
+  const dark = derivePagePalette(darkCss);
+  const vars = (p) => Object.entries(p).map(([k, v]) => `  ${k}: ${v};`).join("\n");
+  let out = "";
+  if (light) out += `
+/* Page palette derived from the "${lightTheme}" highlight theme (light) */
+:root, html[data-theme="light"] {
+${vars(light)}
+}
+`;
+  if (dark) out += `
+/* Page palette derived from the "${darkTheme}" highlight theme (dark) */
+html[data-theme="dark"] {
+${vars(dark)}
+}
+`;
+  return out;
 }
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -78092,6 +78209,11 @@ function headingId(text) {
   return id;
 }
 marked.use(markedHighlight({
+  // Emit `class="hljs language-x"` on the code element so the theme's base
+  // `.hljs` rules (background, text color, and `pre code.hljs` padding) apply
+  // to the whole block, not just the token spans.
+  langPrefix: "hljs language-",
+  emptyLangClass: "hljs",
   highlight(code, lang) {
     if (lang && es_default.getLanguage(lang)) {
       try {
@@ -78249,236 +78371,6 @@ ${bodyHtml}
 </html>
 `;
 }
-var STYLE_CSS = `:root {
-  --bg: #ffffff;
-  --bg-soft: #f6f8fa;
-  --fg: #1f2328;
-  --fg-muted: #57606a;
-  --border: #d0d7de;
-  --border-soft: #e5e9ef;
-  --accent: #0969da;
-  --accent-soft: #ddf4ff;
-  --code-bg: #f6f8fa;
-  --sidebar-w: 288px;
-  --maxw: 920px;
-  --radius: 8px;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-html[data-theme="dark"] {
-  --bg: #0d1117;
-  --bg-soft: #161b22;
-  --fg: #e6edf3;
-  --fg-muted: #8b949e;
-  --border: #30363d;
-  --border-soft: #21262d;
-  --accent: #58a6ff;
-  --accent-soft: #12263f;
-  --code-bg: #161b22;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-  margin: 0;
-  font-family: var(--font);
-  color: var(--fg);
-  background: var(--bg);
-  line-height: 1.6;
-  font-size: 16px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-.layout { display: flex; min-height: 100vh; }
-
-.sidebar {
-  width: var(--sidebar-w);
-  flex: 0 0 var(--sidebar-w);
-  border-right: 1px solid var(--border-soft);
-  background: var(--bg-soft);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.brand-logo { height: 28px; width: auto; flex: 0 0 auto; }
-.sidebar-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.theme-toggle, .github-link {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; padding: 0;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--bg); color: var(--fg); cursor: pointer; text-decoration: none;
-}
-.theme-toggle:hover, .github-link:hover { border-color: var(--accent); color: var(--accent); }
-.theme-toggle svg, .github-link svg { width: 16px; height: 16px; fill: currentColor; }
-.brand a { font-weight: 700; font-size: 17px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.brand a:hover { text-decoration: none; }
-.search { position: relative; }
-.search input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--bg);
-}
-.search input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
-.search-results {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  max-height: 60vh;
-  overflow-y: auto;
-  display: none;
-}
-.search-results.open { display: block; }
-.search-results li { margin: 0; }
-.search-results a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--fg); font-size: 14px; }
-.search-results a:hover { background: var(--bg-soft); text-decoration: none; }
-.search-results .sr-none { color: var(--fg-muted); font-size: 13px; }
-
-.toc-nav { display: flex; flex-direction: column; gap: 2px; }
-.toc-nav > a { padding: 6px 10px; border-radius: 6px; color: var(--fg); font-size: 14px; font-weight: 600; }
-.nav-group { margin-top: 12px; }
-.nav-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-muted);
-  font-weight: 700;
-  padding: 0 10px 4px;
-}
-.nav-group a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--fg); font-size: 14px; }
-.nav-group a:hover { background: rgba(0, 0, 0, 0.04); text-decoration: none; }
-.nav-group a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.sidebar-footer { margin-top: auto; font-size: 12px; color: var(--fg-muted); padding: 8px 10px 0; }
-
-.content { flex: 1 1 auto; min-width: 0; }
-article { max-width: var(--maxw); margin: 0 auto; padding: 40px 48px 80px; }
-.page-header { margin-bottom: 8px; }
-.crumb {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.meta-updated { font-size: 13px; color: var(--fg-muted); }
-.meta-sources { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.src-chip {
-  font-family: var(--mono);
-  font-size: 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  color: var(--fg-muted);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-.src-chip:hover { color: var(--accent); border-color: var(--accent); }
-
-.page-toc {
-  margin: 16px 0 8px;
-  padding: 14px 18px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  background: var(--bg-soft);
-}
-.toc-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-muted); margin-bottom: 8px; }
-.toc-list { list-style: none; margin: 0; padding: 0; }
-.toc-item { display: block; padding: 3px 0; font-size: 14px; color: var(--fg); }
-.toc-item:hover { color: var(--accent); text-decoration: none; }
-.toc-h3 { padding-left: 16px; font-size: 13px; }
-
-.prose { font-size: 16px; }
-.prose h1 { font-size: 2em; line-height: 1.2; margin: 0.4em 0 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-soft); }
-.prose h2 { font-size: 1.5em; margin: 1.4em 0 0.6em; padding-bottom: 0.2em; border-bottom: 1px solid var(--border-soft); }
-.prose h3 { font-size: 1.2em; margin: 1.2em 0 0.5em; }
-.prose h4 { font-size: 1.05em; margin: 1.1em 0 0.5em; }
-.prose p { margin: 0.8em 0; }
-.prose a.wikilink { color: var(--accent); }
-.prose a.wikilink-missing { color: #b91c1c; text-decoration: underline dotted; cursor: help; }
-.prose ul, .prose ol { padding-left: 1.6em; margin: 0.8em 0; }
-.prose li { margin: 0.25em 0; }
-.prose blockquote {
-  margin: 1em 0;
-  padding: 0.4em 1em;
-  border-left: 4px solid var(--accent);
-  color: var(--fg-muted);
-  background: var(--bg-soft);
-  border-radius: 0 6px 6px 0;
-}
-.prose table { border-collapse: collapse; margin: 1em 0; width: 100%; font-size: 15px; display: block; overflow-x: auto; }
-.prose th, .prose td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-.prose th { background: var(--bg-soft); font-weight: 600; }
-.prose tr:nth-child(even) td { background: var(--bg-soft); }
-.prose code {
-  font-family: var(--mono);
-  font-size: 0.875em;
-  background: var(--code-bg);
-  padding: 0.15em 0.4em;
-  border-radius: 5px;
-}
-.prose pre {
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  overflow-x: auto;
-  line-height: 1.5;
-}
-.prose pre code { background: transparent; padding: 0; font-size: 0.85em; }
-.page-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border-soft); font-size: 14px; }
-
-.nav-toggle {
-  display: none;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 50;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  font-size: 14px;
-  cursor: pointer;
-}
-.scrim { display: none; }
-
-@media (max-width: 900px) {
-  .layout { flex-direction: column; }
-  .sidebar {
-    position: fixed;
-    left: 0; top: 0; bottom: 0;
-    width: 280px;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    z-index: 40;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
-  }
-  .sidebar.open { transform: translateX(0); }
-  .nav-toggle { display: block; }
-  .content { width: 100%; }
-  article { padding: 60px 22px 60px; }
-  .scrim {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 30;
-  }
-  .scrim.show { display: block; }
-}
-`;
 var SITE_JS = `(function () {
   'use strict';
   var root = (window.SITE && window.SITE.root) || '';
@@ -78599,6 +78491,21 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   if (!(0, import_node_fs.existsSync)(wikiDir)) {
     throw new Error(`Wiki directory not found: ${wikiDir}`);
   }
+  const themesDir = resolveThemesDir();
+  const lightTheme = resolveThemeFile(themesDir, highlightTheme, DEFAULT_THEME);
+  const darkTheme = resolveThemeFile(themesDir, highlightThemeDark, DEFAULT_DARK_THEME);
+  const lightThemeFile = (0, import_node_path.join)(themesDir, `${lightTheme}.min.css`);
+  const darkThemeFile = (0, import_node_path.join)(themesDir, `${darkTheme}.min.css`);
+  if (!(0, import_node_fs.existsSync)(lightThemeFile) || !(0, import_node_fs.existsSync)(darkThemeFile)) {
+    throw new Error(`Highlight theme not found in ${themesDir} (light: ${lightTheme}, dark: ${darkTheme})`);
+  }
+  const lightThemeCss = (0, import_node_fs.readFileSync)(lightThemeFile, "utf8");
+  const darkThemeCss = (0, import_node_fs.readFileSync)(darkThemeFile, "utf8");
+  const styleSrc = [(0, import_node_path.join)(process.cwd(), "dist", "style.css"), (0, import_node_path.join)(process.cwd(), "src", "style.css")].find((p) => (0, import_node_fs.existsSync)(p));
+  if (!styleSrc) {
+    throw new Error("Site stylesheet not found: run `npm run build` to copy src/style.css into dist/ (or restore src/style.css).");
+  }
+  const baseStyleCss = (0, import_node_fs.readFileSync)(styleSrc, "utf8");
   (0, import_node_fs.rmSync)(outDir, { recursive: true, force: true });
   (0, import_node_fs.mkdirSync)(outDir, { recursive: true });
   const pages = findMarkdown(wikiDir).map((relPath) => {
@@ -78650,14 +78557,6 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     const searchText = p.content.replace(/```[\s\S]*?```/g, " ").replace(/[#*`>|_~\[\]]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
     searchIndex.push({ slug: p.slug, title: p.title, path: p.outRelPath, category: p.category, text: searchText });
   }
-  const themesDir = resolveThemesDir();
-  const lightTheme = resolveThemeFile(themesDir, highlightTheme, DEFAULT_THEME);
-  const darkTheme = resolveThemeFile(themesDir, highlightThemeDark, DEFAULT_DARK_THEME);
-  const lightThemeFile = (0, import_node_path.join)(themesDir, `${lightTheme}.css`);
-  const darkThemeFile = (0, import_node_path.join)(themesDir, `${darkTheme}.css`);
-  if (!(0, import_node_fs.existsSync)(lightThemeFile) || !(0, import_node_fs.existsSync)(darkThemeFile)) {
-    throw new Error(`Highlight theme not found in ${themesDir} (light: ${lightTheme}, dark: ${darkTheme})`);
-  }
   let customCss = "";
   let customCssError = null;
   if (customHighlightCssPath) {
@@ -78670,12 +78569,13 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   const withCustom = (css) => customCss ? `${css}
 /* custom overrides (appended after the base theme) */
 ${customCss}` : css;
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), STYLE_CSS);
+  const paletteCss = buildPagePaletteCss({ lightCss: lightThemeCss, darkCss: darkThemeCss, lightTheme, darkTheme });
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), baseStyleCss + paletteCss);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "site.js"), SITE_JS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "search-index.js"), `window.SEARCH_INDEX = ${JSON.stringify(searchIndex)};
 `);
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), withCustom((0, import_node_fs.readFileSync)(lightThemeFile, "utf8")));
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight-dark.css"), withCustom((0, import_node_fs.readFileSync)(darkThemeFile, "utf8")));
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), withCustom(lightThemeCss));
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight-dark.css"), withCustom(darkThemeCss));
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "404.html"), notFoundHtml(resolvedTitle));
   return {
     pages: pages.length,
@@ -78691,11 +78591,11 @@ ${customCss}` : css;
   };
 }
 
-// index.js
+// src/index.js
 var DEFAULT_CATEGORIES2 = "overview,entities,concepts,flows,features,risks,reference";
 async function run() {
   const wikiDir = core.getInput("wiki-dir") || ".wiki";
-  const outDir = core.getInput("out-dir") || "dist";
+  const outDir = core.getInput("out-dir") || "dist-site";
   const siteTitle = core.getInput("site-title");
   const githubRepo = core.getInput("github-repo") || process.env.GITHUB_REPOSITORY;
   const githubBranch = core.getInput("github-branch") || process.env.GITHUB_REF_NAME;

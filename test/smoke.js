@@ -8,7 +8,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildSite } from '../lib/build-site.js';
+import { buildSite } from '../src/build-site.js';
 
 let failures = 0;
 function assert(cond, msg) {
@@ -87,6 +87,16 @@ try {
   const monoCss = readFileSync(join(outMono, 'highlight.css'), 'utf8');
   assert(monoResult.highlightTheme === 'monokai', `monokai theme selected (got "${monoResult.highlightTheme}")`);
   assert(monoCss !== defaultCss, 'monokai highlight.css differs from default github');
+
+  // page palette follows the highlight theme: style.css adopts the theme colors
+  const defaultStyle = readFileSync(join(out, 'style.css'), 'utf8');
+  assert(defaultStyle.includes('Page palette derived from the "github" highlight theme'),
+    'page palette is derived for the default (github) theme');
+  assert(defaultStyle.includes('--bg: #ffffff'), 'default light palette keeps a white page background');
+  const monoStyle = readFileSync(join(outMono, 'style.css'), 'utf8');
+  assert(monoStyle.includes('--bg: #272822'), 'light page palette adopts the monokai theme background (#272822)');
+  assert(monoStyle.includes('--bg: #0d1117'), 'dark page palette still follows the default github-dark theme (#0d1117)');
+
   const outUnknown = join(root, 'dist-unknown');
   const unknownResult = buildSite({ wikiDir: wiki, outDir: outUnknown, githubRepo: 'iromu/test', githubBranch: 'main', highlightTheme: 'nope-theme' });
   assert(unknownResult.highlightTheme === 'github', `unknown theme falls back to github (got "${unknownResult.highlightTheme}")`);
