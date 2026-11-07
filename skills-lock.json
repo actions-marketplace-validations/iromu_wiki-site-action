@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "git-wiki": {
+      "source": "yysun/awesome-agent-world",
+      "sourceType": "github",
+      "skillPath": "skills/git-wiki/SKILL.md",
+      "computedHash": "7a0c766675ee104158a9957ed185731411446b5b2e00ef475581b7b8aa9a6349"
+    }
+  }
+}

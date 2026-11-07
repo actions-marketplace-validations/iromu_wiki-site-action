@@ -15,6 +15,21 @@ The generated site includes:
 - lightweight client-side full-text search
 - a 404 page
 
+## Generating the wiki
+
+The `.wiki/` directory this action builds is typically produced by the
+[git-wiki skill](https://github.com/yysun/awesome-agent-world/blob/main/skills/git-wiki/SKILL.md),
+which documents a codebase as a Markdown knowledge base. Install it with:
+
+```sh
+npx skills add yysun/awesome-agent-world --skill git-wiki
+```
+
+Then inside an AI agent session, prompt `create the wiki`.
+
+The skill generates the wiki pages (with the frontmatter conventions below)
+that this action renders into a site.
+
 ## Usage
 
 Pair the action with the standard "Deploy static site to Pages" pattern. The
