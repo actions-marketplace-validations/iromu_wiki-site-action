@@ -7,7 +7,8 @@
   "main": "dist/index.cjs",
   "scripts": {
     "build": "esbuild index.js --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.cjs",
-    "test": "node test/smoke.js"
+    "test": "node test/smoke.js",
+    "preview": "node preview.js"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
