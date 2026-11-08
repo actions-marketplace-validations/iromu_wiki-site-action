@@ -4,14 +4,14 @@ type: "feature"
 status: "active"
 language: "default"
 source_paths:
-  - "lib/build-site.js"
+  - "src/build-site.js"
 updated_at: "2026-11-07"
 ---
 
 # Static site generator (Markdown → HTML)
 
 The core capability: converting a Markdown wiki into HTML. It is configured once
-at module load in `lib/build-site.js` via `marked.use(...)` and driven by
+at module load in `src/build-site.js` via `marked.use(...)` and driven by
 per-page state that `buildSite()` resets before each render.
 
 ## Markdown engine
@@ -20,7 +20,8 @@ per-page state that `buildSite()` resets before each render.
 
 - **Syntax highlighting** — `marked-highlight` calls `highlight.js` when a code
   fence names a known language; otherwise the code is HTML-escaped. The result
-  uses the inlined "GitHub" light theme (see [[site-chrome]]).
+  is styled by the selected highlight theme (default `github`; see
+  [[site-chrome]] and the `highlight-theme` input).
 - **`[[wikilink]]` extension** — an inline tokenizer/renderer that turns
   `[[slug]]`, `[[slug|label]]`, and `[[slug#anchor]]` into internal links.
 
@@ -36,7 +37,7 @@ This is the feature's signature behavior:
     the current page's directory, with the anchor appended if present.
   - If not found: the slug is added to `brokenLinks` and a
     `<a class="wikilink-missing">` is emitted — **broken links are flagged, not
-    dropped**. The caller (`index.js`) surfaces the count as a warning.
+    dropped**. The caller (`src/index.js`) surfaces the count as a warning.
 
 ## Heading anchors and TOC
 

@@ -9,9 +9,12 @@ approach).
 The generated site includes:
 
 - a category sidebar (grouped by top-level wiki directory)
+- light/dark mode that follows the system theme, with a manual toggle
 - per-page table of contents
 - `[[wiki-link]]` resolution (broken links are flagged, not dropped)
-- syntax highlighting (highlight.js "GitHub" theme)
+- syntax highlighting (separate light + dark highlight.js themes from `dist/highlight-themes/`, plus optional custom CSS overrides)
+- a page palette that adopts the colors of the selected highlight themes, so the whole site — not just code blocks — matches the theme
+- a GitHub icon linking to the repo, and an optional sidebar logo
 - lightweight client-side full-text search
 - a 404 page
 
@@ -62,10 +65,10 @@ jobs:
       - uses: iromu/wiki-site-action@v2
         with:
           wiki-dir: .wiki
-          out-dir: dist
+          out-dir: dist-site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: dist-site
 
   deploy:
     environment:
@@ -83,11 +86,15 @@ jobs:
 | Name          | Default                                              | Description                                                  |
 | ------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
 | `wiki-dir`    | `.wiki`                                              | Source wiki directory, relative to the repo root.             |
-| `out-dir`     | `dist`                                               | Where the built site is written, relative to the repo root.   |
+| `out-dir`     | `dist-site`                                          | Where the built site is written, relative to the repo root. Kept separate from the action's own `dist/`. |
 | `site-title`  | _(index page `title`)_                               | Brand / page-title / 404 title. Falls back to the index `title`. |
 | `github-repo` | _(current repo)_                                     | `owner/repo` used for "view source" links.                    |
 | `github-branch`| _(current branch)_                                   | Branch used for "view source" links.                          |
 | `categories`  | `overview,entities,concepts,flows,features,risks,reference` | Comma-separated sidebar order; unlisted dirs are appended. |
+| `highlight-theme` | `github`                                    | highlight.js theme for code blocks in light mode (see `dist/highlight-themes/`); its base colors also drive the light-mode page palette. Unknown values fall back to `github`. |
+| `highlight-theme-dark` | `github-dark`                          | highlight.js theme for code blocks in dark mode; its base colors also drive the dark-mode page palette. Unknown values fall back to `github-dark`. |
+| `custom-highlight-css` | _(empty)_                              | Path to a CSS file appended after the theme to override or extend it. |
+| `logo` | _(empty)_ | Path to a logo image shown in the sidebar next to the site title. |
 
 ### Frontmatter conventions
 
@@ -108,8 +115,8 @@ title.
 
 ## How it works
 
-`index.js` reads the inputs and calls `buildSite()` (in `lib/build-site.js`) to
-render the site into `out-dir`. That's it — deployment is the consuming
+`src/index.js` reads the inputs and calls `buildSite()` (in `src/build-site.js`)
+to render the site into `out-dir`. That's it — deployment is the consuming
 workflow's job.
 
 ## Development
@@ -117,9 +124,14 @@ workflow's job.
 ```sh
 npm install
 npm test      # build smoke test against a fixture wiki
-npm run build # bundle index.js -> dist/index.cjs (committed)
+npm run build # copy runtime assets into dist/ + bundle src/index.js -> dist/index.cjs (committed)
+npm run preview # build via the committed dist/index.cjs and serve it locally
 ```
 
 `dist/index.cjs` is the bundled entry the action runs (see `action.yml`); it is
-committed so the action has no install step. After changing `index.js` or
-`lib/*`, re-run `npm run build` and commit the new bundle.
+committed so the action has no install step. `npm run build` first runs
+`scripts/copy-assets.js` to copy the highlight.js `*.min.css` themes into
+`dist/highlight-themes/` and `src/style.css` into `dist/style.css`, then bundles
+`src/index.js`. After changing anything under `src/`, re-run `npm run build`
+and commit the new bundle and assets (the CI workflow fails if the committed
+`dist/` drifts from the source).

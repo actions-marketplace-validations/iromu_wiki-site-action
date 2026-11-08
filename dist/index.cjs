@@ -75811,11 +75811,11 @@ var require_lib2 = __commonJS({
   }
 });
 
-// index.js
+// src/index.js
 var core = __toESM(require_core(), 1);
 var import_node_path2 = require("node:path");
 
-// lib/build-site.js
+// src/build-site.js
 var import_node_fs = require("node:fs");
 var import_node_path = require("node:path");
 
@@ -77955,7 +77955,7 @@ var parseInline = marked.parseInline;
 var parser = _Parser.parse;
 var lexer = _Lexer.lex;
 
-// lib/build-site.js
+// src/build-site.js
 var import_gray_matter = __toESM(require_gray_matter(), 1);
 
 // node_modules/marked-highlight/src/index.js
@@ -78048,8 +78048,134 @@ function escape3(html2, encode) {
 var import_lib = __toESM(require_lib2(), 1);
 var es_default = import_lib.default;
 
-// lib/build-site.js
+// src/build-site.js
 var DEFAULT_CATEGORIES = ["overview", "entities", "concepts", "flows", "features", "risks", "reference"];
+var DEFAULT_THEME = "github";
+var DEFAULT_DARK_THEME = "github-dark";
+function resolveThemesDir() {
+  return (0, import_node_path.join)(process.cwd(), "dist", "highlight-themes");
+}
+function resolveThemeFile(themesDir, requested, fallback) {
+  const key = (requested || "").toLowerCase().trim();
+  return key && (0, import_node_fs.existsSync)((0, import_node_path.join)(themesDir, `${key}.min.css`)) ? key : fallback;
+}
+var NAMED_COLORS = {
+  navy: "#000080",
+  silver: "#c0c0c0",
+  white: "#ffffff",
+  black: "#000000",
+  maroon: "#800000",
+  teal: "#008080",
+  olive: "#808000",
+  gray: "#808080",
+  grey: "#808080",
+  aqua: "#00ffff",
+  lime: "#00ff00",
+  yellow: "#ffff00",
+  red: "#ff0000",
+  blue: "#0000ff",
+  fuchsia: "#ff00ff",
+  purple: "#800080",
+  orange: "#ffa500",
+  gold: "#ffd700"
+};
+function parseColor(value) {
+  if (!value) return null;
+  const s = value.trim();
+  let m = s.match(/^#([0-9a-f]{3})$/i);
+  if (m) {
+    const h = m[1];
+    return { r: parseInt(h[0] + h[0], 16), g: parseInt(h[1] + h[1], 16), b: parseInt(h[2] + h[2], 16) };
+  }
+  m = s.match(/^#([0-9a-f]{6})$/i);
+  if (m) {
+    const h = m[1];
+    return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+  }
+  m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (m) {
+    const p = m[1].split(/[\s,]/).map(parseFloat);
+    if (p.length >= 3) return { r: p[0], g: p[1], b: p[2] };
+  }
+  m = s.match(/^hsl\(([^)]+)\)$/i);
+  if (m) {
+    const p = m[1].split(/[\s,/]/).map(parseFloat);
+    const h = p[0] / 360, l = p[2] / 100, sat = p.length > 1 ? p[1] / 100 : 0;
+    const a = sat * Math.min(l, 1 - l);
+    const f = (n) => {
+      const k = (n + h * 12) % 12;
+      return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
+  }
+  const named = NAMED_COLORS[s.toLowerCase()];
+  return named ? parseColor(named) : null;
+}
+function resolveThemeColor(css, value, depth = 0) {
+  if (!value || depth > 4) return null;
+  const v = value.trim();
+  const varMatch = v.match(/^var\(\s*(--[a-z0-9-]+)\s*\)$/i);
+  if (varMatch) {
+    const def2 = css.match(new RegExp(varMatch[1] + "\\s*:\\s*([^;{}]+)"));
+    return def2 ? resolveThemeColor(css, def2[1], depth + 1) : null;
+  }
+  const urlMatch = v.match(/url\([^)]*\)\s*(\S+)/);
+  if (urlMatch) return parseColor(urlMatch[1]);
+  return parseColor(v);
+}
+function luminance(c) {
+  return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+}
+function mixColor(a, b, t) {
+  return { r: Math.round(a.r + (b.r - a.r) * t), g: Math.round(a.g + (b.g - a.g) * t), b: Math.round(a.b + (b.b - a.b) * t) };
+}
+function toHex(c) {
+  return "#" + [c.r, c.g, c.b].map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");
+}
+function derivePagePalette(themeCss) {
+  const stripped = themeCss.replace(/\/\*[\s\S]*?\*\//g, "");
+  const base = stripped.match(/\.hljs\s*\{([^}]*background[^}]*)\}/);
+  if (!base) return null;
+  const block2 = base[1];
+  const bg = (block2.match(/(?:^|;)\s*background(?:-color)?:\s*([^;{}]+)/) || [])[1];
+  const fg = (block2.match(/(?:^|;)\s*color:\s*([^;{}]+)/) || [])[1];
+  let B = resolveThemeColor(stripped, bg);
+  let F = resolveThemeColor(stripped, fg);
+  const WHITE = { r: 255, g: 255, b: 255 }, BLACK = { r: 0, g: 0, b: 0 };
+  if (!B && F) B = luminance(F) > 0.5 ? BLACK : WHITE;
+  if (!F && B) F = luminance(B) > 0.5 ? BLACK : WHITE;
+  if (!B || !F) return null;
+  const light = luminance(B) > 0.5;
+  const nudge = light ? BLACK : WHITE;
+  return {
+    "--bg": toHex(B),
+    "--bg-soft": toHex(mixColor(B, nudge, light ? 0.03 : 0.05)),
+    "--fg": toHex(F),
+    "--fg-muted": toHex(mixColor(F, B, light ? 0.45 : 0.35)),
+    "--border": toHex(mixColor(B, nudge, light ? 0.16 : 0.14)),
+    "--border-soft": toHex(mixColor(B, nudge, light ? 0.09 : 0.07)),
+    "--code-bg": toHex(mixColor(B, nudge, light ? 0.03 : 0.05))
+  };
+}
+function buildPagePaletteCss({ lightCss, darkCss, lightTheme, darkTheme }) {
+  const light = derivePagePalette(lightCss);
+  const dark = derivePagePalette(darkCss);
+  const vars = (p) => Object.entries(p).map(([k, v]) => `  ${k}: ${v};`).join("\n");
+  let out = "";
+  if (light) out += `
+/* Page palette derived from the "${lightTheme}" highlight theme (light) */
+:root, html[data-theme="light"] {
+${vars(light)}
+}
+`;
+  if (dark) out += `
+/* Page palette derived from the "${darkTheme}" highlight theme (dark) */
+html[data-theme="dark"] {
+${vars(dark)}
+}
+`;
+  return out;
+}
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
@@ -78083,6 +78209,11 @@ function headingId(text) {
   return id;
 }
 marked.use(markedHighlight({
+  // Emit `class="hljs language-x"` on the code element so the theme's base
+  // `.hljs` rules (background, text color, and `pre code.hljs` padding) apply
+  // to the whole block, not just the token spans.
+  langPrefix: "hljs language-",
+  emptyLangClass: "hljs",
   highlight(code, lang) {
     if (lang && es_default.getLanguage(lang)) {
       try {
@@ -78138,7 +78269,7 @@ marked.use({
     }
   ]
 });
-function buildSidebar(pages, activeOutRelPath, root, categories, catLabels, siteTitle) {
+function buildSidebar(pages, activeOutRelPath, root, categories, catLabels, siteTitle, githubRepo, githubBranch, logoFile) {
   const isHome = (p) => p.slug === "index";
   const byCat = /* @__PURE__ */ new Map();
   for (const p of pages) {
@@ -78162,7 +78293,14 @@ ${links}    </div>
 `;
   }).join("");
   const homeCls = activeOutRelPath === "index.html" ? ' class="active"' : "";
-  return `<div class="brand"><a href="${root}index.html">${escapeHtml(siteTitle)}</a></div>
+  const logoImg = logoFile ? `<img class="brand-logo" src="${root}${logoFile}" alt="logo">` : "";
+  return `<div class="sidebar-top">
+    <div class="brand">${logoImg}<a href="${root}index.html">${escapeHtml(siteTitle)}</a></div>
+    <div class="sidebar-actions">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
+      <a class="github-link" href="https://github.com/${githubRepo}/tree/${githubBranch}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(githubRepo)} on GitHub" title="Open on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.001 8.001 0 0 1-5.45 7.59c-.39.07-.54-.17-.54-.38 0-.28.01-1.04.01-2.03 0-.72-.24-1.17-.7-1.42 2.28-.2 4.65-1.12 4.65-5.02 0-1.11-.39-2.02-1.03-2.73.1-.26.45-1.29-.1-2.69 0 0-.84-.28-2.75 1.05a9.34 9.34 0 0 0-5 0c-1.91-1.33-2.75-1.05-2.75-1.05-.55 1.4-.2 2.43-.1 2.69-.64.71-1.03 1.62-1.03 2.73 0 3.9 2.36 4.82 4.65 5.02-.29.25-.54.71-.63 1.37-.57.27-1.96.71-2.93-.85a5.473 5.473 0 0 1-.38-2c0 0-.78.21-.25 1.03.26.48.77 1.38 2.6 1.35a9.26 9.26 0 0 1-5.22-1.78 9.416 9.416 0 0 1 0-13.41A8.009 8.009 0 0 1 8 0z"></path></svg></a>
+    </div>
+  </div>
   <div class="search">
     <input id="search" type="search" placeholder="Search the wiki\u2026" autocomplete="off" spellcheck="false" aria-label="Search">
     <ul id="search-results" class="search-results" role="listbox"></ul>
@@ -78198,8 +78336,10 @@ function buildPageHtml({ page, bodyHtml, sidebar, root, tocHtml, catLabels, site
   <title>${escapeHtml(docTitle)}</title>
   <meta name="description" content="${escapeHtml(page.title)} \u2014 ${escapeHtml(siteTitle)}">
   <link rel="stylesheet" href="${root}style.css">
-  <link rel="stylesheet" href="${root}highlight.css">
+  <link rel="stylesheet" href="${root}highlight.css" data-hl="light">
+  <link rel="stylesheet" href="${root}highlight-dark.css" data-hl="dark">
   <script>window.SITE = { root: "${root}" };</script>
+  <script>(function(){var d=document.documentElement;var t;try{t=localStorage.getItem('wiki-theme');}catch(e){}if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}d.setAttribute('data-theme',t);var ls=document.querySelectorAll('link[data-hl]');for(var i=0;i<ls.length;i++){if(ls[i].getAttribute('data-hl')!==t)ls[i].disabled=true;}})();</script>
 </head>
 <body>
   <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">&#9776; Menu</button>
@@ -78231,216 +78371,30 @@ ${bodyHtml}
 </html>
 `;
 }
-var STYLE_CSS = `:root {
-  --bg: #ffffff;
-  --bg-soft: #f6f8fa;
-  --fg: #1f2328;
-  --fg-muted: #57606a;
-  --border: #d0d7de;
-  --border-soft: #e5e9ef;
-  --accent: #0969da;
-  --accent-soft: #ddf4ff;
-  --code-bg: #f6f8fa;
-  --sidebar-w: 288px;
-  --maxw: 920px;
-  --radius: 8px;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-  margin: 0;
-  font-family: var(--font);
-  color: var(--fg);
-  background: var(--bg);
-  line-height: 1.6;
-  font-size: 16px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-.layout { display: flex; min-height: 100vh; }
-
-.sidebar {
-  width: var(--sidebar-w);
-  flex: 0 0 var(--sidebar-w);
-  border-right: 1px solid var(--border-soft);
-  background: var(--bg-soft);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.brand a { font-weight: 700; font-size: 17px; color: var(--fg); }
-.brand a:hover { text-decoration: none; }
-.search { position: relative; }
-.search input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--bg);
-}
-.search input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
-.search-results {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  max-height: 60vh;
-  overflow-y: auto;
-  display: none;
-}
-.search-results.open { display: block; }
-.search-results li { margin: 0; }
-.search-results a { display: block; padding: 6px 8px; border-radius: 6px; color: var(--fg); font-size: 14px; }
-.search-results a:hover { background: var(--bg-soft); text-decoration: none; }
-.search-results .sr-none { color: var(--fg-muted); font-size: 13px; }
-
-.toc-nav { display: flex; flex-direction: column; gap: 2px; }
-.toc-nav > a { padding: 6px 10px; border-radius: 6px; color: var(--fg); font-size: 14px; font-weight: 600; }
-.nav-group { margin-top: 12px; }
-.nav-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-muted);
-  font-weight: 700;
-  padding: 0 10px 4px;
-}
-.nav-group a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--fg); font-size: 14px; }
-.nav-group a:hover { background: rgba(0, 0, 0, 0.04); text-decoration: none; }
-.nav-group a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.sidebar-footer { margin-top: auto; font-size: 12px; color: var(--fg-muted); padding: 8px 10px 0; }
-
-.content { flex: 1 1 auto; min-width: 0; }
-article { max-width: var(--maxw); margin: 0 auto; padding: 40px 48px 80px; }
-.page-header { margin-bottom: 8px; }
-.crumb {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.meta-updated { font-size: 13px; color: var(--fg-muted); }
-.meta-sources { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.src-chip {
-  font-family: var(--mono);
-  font-size: 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  color: var(--fg-muted);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-.src-chip:hover { color: var(--accent); border-color: var(--accent); }
-
-.page-toc {
-  margin: 16px 0 8px;
-  padding: 14px 18px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  background: var(--bg-soft);
-}
-.toc-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-muted); margin-bottom: 8px; }
-.toc-list { list-style: none; margin: 0; padding: 0; }
-.toc-item { display: block; padding: 3px 0; font-size: 14px; color: var(--fg); }
-.toc-item:hover { color: var(--accent); text-decoration: none; }
-.toc-h3 { padding-left: 16px; font-size: 13px; }
-
-.prose { font-size: 16px; }
-.prose h1 { font-size: 2em; line-height: 1.2; margin: 0.4em 0 0.6em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-soft); }
-.prose h2 { font-size: 1.5em; margin: 1.4em 0 0.6em; padding-bottom: 0.2em; border-bottom: 1px solid var(--border-soft); }
-.prose h3 { font-size: 1.2em; margin: 1.2em 0 0.5em; }
-.prose h4 { font-size: 1.05em; margin: 1.1em 0 0.5em; }
-.prose p { margin: 0.8em 0; }
-.prose a.wikilink { color: var(--accent); }
-.prose a.wikilink-missing { color: #b91c1c; text-decoration: underline dotted; cursor: help; }
-.prose ul, .prose ol { padding-left: 1.6em; margin: 0.8em 0; }
-.prose li { margin: 0.25em 0; }
-.prose blockquote {
-  margin: 1em 0;
-  padding: 0.4em 1em;
-  border-left: 4px solid var(--accent);
-  color: var(--fg-muted);
-  background: var(--bg-soft);
-  border-radius: 0 6px 6px 0;
-}
-.prose table { border-collapse: collapse; margin: 1em 0; width: 100%; font-size: 15px; display: block; overflow-x: auto; }
-.prose th, .prose td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-.prose th { background: var(--bg-soft); font-weight: 600; }
-.prose tr:nth-child(even) td { background: var(--bg-soft); }
-.prose code {
-  font-family: var(--mono);
-  font-size: 0.875em;
-  background: var(--code-bg);
-  padding: 0.15em 0.4em;
-  border-radius: 5px;
-}
-.prose pre {
-  background: var(--bg-soft);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  overflow-x: auto;
-  line-height: 1.5;
-}
-.prose pre code { background: transparent; padding: 0; font-size: 0.85em; }
-.page-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border-soft); font-size: 14px; }
-
-.nav-toggle {
-  display: none;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 50;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
-  font-size: 14px;
-  cursor: pointer;
-}
-.scrim { display: none; }
-
-@media (max-width: 900px) {
-  .layout { flex-direction: column; }
-  .sidebar {
-    position: fixed;
-    left: 0; top: 0; bottom: 0;
-    width: 280px;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    z-index: 40;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
-  }
-  .sidebar.open { transform: translateX(0); }
-  .nav-toggle { display: block; }
-  .content { width: 100%; }
-  article { padding: 60px 22px 60px; }
-  .scrim {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 30;
-  }
-  .scrim.show { display: block; }
-}
-`;
 var SITE_JS = `(function () {
   'use strict';
   var root = (window.SITE && window.SITE.root) || '';
+
+  // ---- light/dark theme toggle (initial theme set by the inline head script) ----
+  var rootEl = document.documentElement;
+  var themeLinks = Array.prototype.slice.call(document.querySelectorAll('link[data-hl]'));
+  var SUN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 14a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 14zm6-6a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 1-.5.5zM2 8a.5.5 0 0 1-.5.5v2A.5.5 0 0 1 0 10V8a.5.5 0 0 1 .5-.5h2A.5.5 0 0 1 2 8zm12 0h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1z"/></svg>';
+  var MOON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.598 5.534a.748.748 0 0 1 .129.815 7.418 7.418 0 0 1-.892 2.257 7.418 7.418 0 0 1-1.122 1.494.749.749 0 0 1-.815.129 7.418 7.418 0 0 1-2.257-.892 7.418 7.418 0 0 1-1.494-1.122.749.749 0 0 1-.129-.815 7.418 7.418 0 0 1 .892-2.257 7.418 7.418 0 0 1 1.122-1.494.749.749 0 0 1 .815-.129 7.418 7.418 0 0 1 2.257.892 7.418 7.418 0 0 1 1.494 1.122zM8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm4-8a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>';
+  function currentTheme() { return rootEl.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function applyTheme(t) {
+    rootEl.setAttribute('data-theme', t);
+    for (var i = 0; i < themeLinks.length; i++) themeLinks[i].disabled = themeLinks[i].getAttribute('data-hl') !== t;
+  }
+  var themeBtn = document.getElementById('theme-toggle');
+  if (themeBtn) {
+    themeBtn.innerHTML = currentTheme() === 'dark' ? SUN : MOON;
+    themeBtn.addEventListener('click', function () {
+      var t = currentTheme() === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('wiki-theme', t); } catch (e) {}
+      applyTheme(t);
+      themeBtn.innerHTML = t === 'dark' ? SUN : MOON;
+    });
+  }
 
   // ---- mobile nav toggle ----
   var toggle = document.querySelector('.nav-toggle');
@@ -78509,92 +78463,6 @@ var SITE_JS = `(function () {
   });
 })();
 `;
-var HIGHLIGHT_CSS = `pre code.hljs {
-  display: block;
-  overflow-x: auto;
-  padding: 1em
-}
-code.hljs {
-  padding: 3px 5px
-}
-.hljs {
-  color: #24292e;
-  background: #ffffff
-}
-.hljs-doctag,
-.hljs-keyword,
-.hljs-meta .hljs-keyword,
-.hljs-template-tag,
-.hljs-template-variable,
-.hljs-type,
-.hljs-variable.language_ {
-  color: #d73a49
-}
-.hljs-title,
-.hljs-title.class_,
-.hljs-title.class_.inherited__,
-.hljs-title.function_ {
-  color: #6f42c1
-}
-.hljs-attr,
-.hljs-attribute,
-.hljs-literal,
-.hljs-meta,
-.hljs-number,
-.hljs-operator,
-.hljs-variable,
-.hljs-selector-attr,
-.hljs-selector-class,
-.hljs-selector-id {
-  color: #005cc5
-}
-.hljs-regexp,
-.hljs-string,
-.hljs-meta .hljs-string {
-  color: #032f62
-}
-.hljs-built_in,
-.hljs-symbol {
-  color: #e36209
-}
-.hljs-comment,
-.hljs-code,
-.hljs-formula {
-  color: #6a737d
-}
-.hljs-name,
-.hljs-quote,
-.hljs-selector-tag,
-.hljs-selector-pseudo {
-  color: #22863a
-}
-.hljs-subst {
-  color: #24292e
-}
-.hljs-section {
-  color: #005cc5;
-  font-weight: bold
-}
-.hljs-bullet {
-  color: #735c0f
-}
-.hljs-emphasis {
-  color: #24292e;
-  font-style: italic
-}
-.hljs-strong {
-  color: #24292e;
-  font-weight: bold
-}
-.hljs-addition {
-  color: #22863a;
-  background-color: #f0fff4
-}
-.hljs-deletion {
-  color: #b31d28;
-  background-color: #ffeef0
-}
-`;
 function notFoundHtml(siteTitle) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -78619,10 +78487,25 @@ function notFoundHtml(siteTitle) {
 </html>
 `;
 }
-function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES }) {
+function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", categories = DEFAULT_CATEGORIES, highlightTheme = DEFAULT_THEME, highlightThemeDark = DEFAULT_DARK_THEME, customHighlightCssPath = "", logoPath = "" }) {
   if (!(0, import_node_fs.existsSync)(wikiDir)) {
     throw new Error(`Wiki directory not found: ${wikiDir}`);
   }
+  const themesDir = resolveThemesDir();
+  const lightTheme = resolveThemeFile(themesDir, highlightTheme, DEFAULT_THEME);
+  const darkTheme = resolveThemeFile(themesDir, highlightThemeDark, DEFAULT_DARK_THEME);
+  const lightThemeFile = (0, import_node_path.join)(themesDir, `${lightTheme}.min.css`);
+  const darkThemeFile = (0, import_node_path.join)(themesDir, `${darkTheme}.min.css`);
+  if (!(0, import_node_fs.existsSync)(lightThemeFile) || !(0, import_node_fs.existsSync)(darkThemeFile)) {
+    throw new Error(`Highlight theme not found in ${themesDir} (light: ${lightTheme}, dark: ${darkTheme})`);
+  }
+  const lightThemeCss = (0, import_node_fs.readFileSync)(lightThemeFile, "utf8");
+  const darkThemeCss = (0, import_node_fs.readFileSync)(darkThemeFile, "utf8");
+  const styleSrc = [(0, import_node_path.join)(process.cwd(), "dist", "style.css"), (0, import_node_path.join)(process.cwd(), "src", "style.css")].find((p) => (0, import_node_fs.existsSync)(p));
+  if (!styleSrc) {
+    throw new Error("Site stylesheet not found: run `npm run build` to copy src/style.css into dist/ (or restore src/style.css).");
+  }
+  const baseStyleCss = (0, import_node_fs.readFileSync)(styleSrc, "utf8");
   (0, import_node_fs.rmSync)(outDir, { recursive: true, force: true });
   (0, import_node_fs.mkdirSync)(outDir, { recursive: true });
   const pages = findMarkdown(wikiDir).map((relPath) => {
@@ -78648,6 +78531,16 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   const catLabels = Object.fromEntries(categories.map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)]));
   slugMap = Object.fromEntries(pages.map((p) => [p.slug, p]));
   brokenLinks = /* @__PURE__ */ new Set();
+  let logoFile = "";
+  let logoError = null;
+  if (logoPath) {
+    if ((0, import_node_fs.existsSync)(logoPath)) {
+      logoFile = (0, import_node_path.basename)(logoPath);
+      (0, import_node_fs.copyFileSync)(logoPath, (0, import_node_path.join)(outDir, logoFile));
+    } else {
+      logoError = `Logo not found: ${logoPath}`;
+    }
+  }
   const searchIndex = [];
   for (const p of pages) {
     currentPageDir = (0, import_node_path.dirname)(p.outRelPath);
@@ -78655,7 +78548,7 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     usedHeadingIds = /* @__PURE__ */ new Set();
     const bodyHtml = marked.parse(p.content);
     const root = rootPrefix(p.outRelPath);
-    const sidebar = buildSidebar(pages, p.outRelPath, root, categories, catLabels, resolvedTitle);
+    const sidebar = buildSidebar(pages, p.outRelPath, root, categories, catLabels, resolvedTitle, githubRepo, githubBranch, logoFile);
     const tocHtml = buildTocHtml(toc);
     const html2 = buildPageHtml({ page: p, bodyHtml, sidebar, root, tocHtml, catLabels, siteTitle: resolvedTitle, githubRepo, githubBranch });
     const outPath = (0, import_node_path.join)(outDir, p.outRelPath);
@@ -78664,32 +78557,58 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
     const searchText = p.content.replace(/```[\s\S]*?```/g, " ").replace(/[#*`>|_~\[\]]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
     searchIndex.push({ slug: p.slug, title: p.title, path: p.outRelPath, category: p.category, text: searchText });
   }
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), STYLE_CSS);
+  let customCss = "";
+  let customCssError = null;
+  if (customHighlightCssPath) {
+    if ((0, import_node_fs.existsSync)(customHighlightCssPath)) {
+      customCss = (0, import_node_fs.readFileSync)(customHighlightCssPath, "utf8");
+    } else {
+      customCssError = `Custom highlight CSS not found: ${customHighlightCssPath}`;
+    }
+  }
+  const withCustom = (css) => customCss ? `${css}
+/* custom overrides (appended after the base theme) */
+${customCss}` : css;
+  const paletteCss = buildPagePaletteCss({ lightCss: lightThemeCss, darkCss: darkThemeCss, lightTheme, darkTheme });
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "style.css"), baseStyleCss + paletteCss);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "site.js"), SITE_JS);
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "search-index.js"), `window.SEARCH_INDEX = ${JSON.stringify(searchIndex)};
 `);
-  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), HIGHLIGHT_CSS);
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight.css"), withCustom(lightThemeCss));
+  (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "highlight-dark.css"), withCustom(darkThemeCss));
   (0, import_node_fs.writeFileSync)((0, import_node_path.join)(outDir, "404.html"), notFoundHtml(resolvedTitle));
   return {
     pages: pages.length,
     outDir,
     siteTitle: resolvedTitle,
-    brokenLinks: [...brokenLinks]
+    brokenLinks: [...brokenLinks],
+    highlightTheme: lightTheme,
+    highlightThemeDark: darkTheme,
+    customHighlightCssApplied: Boolean(customCss),
+    customHighlightCssError: customCssError,
+    logo: logoFile,
+    logoError
   };
 }
 
-// index.js
+// src/index.js
 var DEFAULT_CATEGORIES2 = "overview,entities,concepts,flows,features,risks,reference";
 async function run() {
   const wikiDir = core.getInput("wiki-dir") || ".wiki";
-  const outDir = core.getInput("out-dir") || "dist";
+  const outDir = core.getInput("out-dir") || "dist-site";
   const siteTitle = core.getInput("site-title");
   const githubRepo = core.getInput("github-repo") || process.env.GITHUB_REPOSITORY;
   const githubBranch = core.getInput("github-branch") || process.env.GITHUB_REF_NAME;
   const categories = (core.getInput("categories") || DEFAULT_CATEGORIES2).split(",").map((s) => s.trim()).filter(Boolean);
+  const highlightTheme = core.getInput("highlight-theme");
+  const highlightThemeDark = core.getInput("highlight-theme-dark");
+  const customCssPath = core.getInput("custom-highlight-css");
+  const logoPath = core.getInput("logo");
   if (!githubRepo) throw new Error("Could not determine github-repo (set the input or run in a GitHub workflow).");
   const absWiki = (0, import_node_path2.resolve)(process.cwd(), wikiDir);
   const absOut = (0, import_node_path2.resolve)(process.cwd(), outDir);
+  const absCustomCss = customCssPath ? (0, import_node_path2.resolve)(process.cwd(), customCssPath) : "";
+  const absLogo = logoPath ? (0, import_node_path2.resolve)(process.cwd(), logoPath) : "";
   core.info(`Building wiki from ${absWiki} \u2192 ${absOut}`);
   const result = buildSite({
     wikiDir: absWiki,
@@ -78697,9 +78616,25 @@ async function run() {
     githubRepo,
     githubBranch,
     siteTitle,
-    categories
+    categories,
+    highlightTheme,
+    highlightThemeDark,
+    customHighlightCssPath: absCustomCss,
+    logoPath: absLogo
   });
-  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}").`);
+  core.info(`Built ${result.pages} pages (site title: "${result.siteTitle}", theme: light "${result.highlightTheme}" / dark "${result.highlightThemeDark}").`);
+  const requestedTheme = (highlightTheme || "").toLowerCase().trim();
+  if (requestedTheme && requestedTheme !== result.highlightTheme) {
+    core.warning(`Unknown highlight-theme "${highlightTheme}"; used "${result.highlightTheme}" instead.`);
+  }
+  const requestedDark = (highlightThemeDark || "").toLowerCase().trim();
+  if (requestedDark && requestedDark !== result.highlightThemeDark) {
+    core.warning(`Unknown highlight-theme-dark "${highlightThemeDark}"; used "${result.highlightThemeDark}" instead.`);
+  }
+  if (result.customHighlightCssApplied) core.info(`Applied custom highlight CSS from "${customCssPath}".`);
+  if (result.customHighlightCssError) core.warning(result.customHighlightCssError);
+  if (result.logo) core.info(`Using logo "${logoPath}".`);
+  if (result.logoError) core.warning(result.logoError);
   if (result.brokenLinks.length) {
     core.warning(`${result.brokenLinks.length} unresolvable wiki-link(s): ${result.brokenLinks.join(", ")}`);
   }

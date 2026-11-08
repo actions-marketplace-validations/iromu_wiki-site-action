@@ -11,9 +11,12 @@ inputs:
     required: false
     default: .wiki
   out-dir:
-    description: Path to write the built site into, relative to the repo root.
+    description: >-
+      Path to write the built site into, relative to the repo root. Defaults to
+      dist-site (kept separate from the action's own dist/, which holds the
+      bundle and its runtime assets).
     required: false
-    default: dist
+    default: dist-site
   site-title:
     description: >-
       Site title used for the brand, page titles, and the 404 page. Defaults to
@@ -34,6 +37,33 @@ inputs:
       Directories not listed are appended after these.
     required: false
     default: overview,entities,concepts,flows,features,risks,reference
+  highlight-theme:
+    description: >-
+      highlight.js theme for code blocks (e.g. github, github-dark,
+      atom-one-dark, monokai, xcode, vs, default, obsidian). Unknown values
+      fall back to the default. Available themes live in dist/highlight-themes/.
+    required: false
+    default: github
+  highlight-theme-dark:
+    description: >-
+      highlight.js theme for code blocks in dark mode (used when the visitor's
+      system theme is dark or the page toggle is set to dark). Unknown values
+      fall back to the default. Available themes live in dist/highlight-themes/.
+    required: false
+    default: github-dark
+  custom-highlight-css:
+    description: >-
+      Path (relative to the repo root) to a CSS file appended after the
+      selected highlight theme, so it can override or extend the theme's rules.
+      Leave empty for no overrides.
+    required: false
+    default: ''
+  logo:
+    description: >-
+      Path (relative to the repo root) to a logo image shown in the sidebar
+      next to the site title. Copied into the output. Leave empty for none.
+    required: false
+    default: ''
 
 runs:
   using: node24

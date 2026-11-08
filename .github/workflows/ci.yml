@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (copy runtime assets + bundle)
+        run: npm run build
+
+      # The action runs the committed dist/ bundle + assets. Fail if a source
+      # change was made without regenerating and committing dist/, so the
+      # published artifact never drifts from the source.
+      - name: Verify committed dist/ is in sync
+        run: git diff --exit-code -- dist/
+
+      - name: Run tests
+        run: npm test
