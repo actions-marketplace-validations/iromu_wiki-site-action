@@ -78309,7 +78309,7 @@ ${links}    </div>
   <nav class="toc-nav" aria-label="Wiki">
     <a href="${root}index.html"${homeCls}>Home</a>
 ${sections}  </nav>
-  <div class="sidebar-footer">${escapeHtml(siteTitle)} \xB7 skills-first agent builder</div>`;
+  <div class="sidebar-footer">${escapeHtml(siteTitle)}</div>`;
 }
 function buildTocHtml(toc2) {
   if (!toc2.length) return "";

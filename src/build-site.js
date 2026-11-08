@@ -299,7 +299,7 @@ function buildSidebar(pages, activeOutRelPath, root, categories, catLabels, site
   <nav class="toc-nav" aria-label="Wiki">
     <a href="${root}index.html"${homeCls}>Home</a>
 ${sections}  </nav>
-  <div class="sidebar-footer">${escapeHtml(siteTitle)} · skills-first agent builder</div>`;
+  <div class="sidebar-footer">${escapeHtml(siteTitle)}</div>`;
 }
 
 function buildTocHtml(toc) {
