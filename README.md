@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v4
-      - uses: iromu/wiki-site-action@v2.0.1
+      - uses: iromu/wiki-site-action@vv2.0.2
         with:
           wiki-dir: .wiki
           out-dir: dist-site
