@@ -5,7 +5,7 @@ status: "active"
 language: "default"
 source_paths:
   - "action.yml"
-  - "index.js"
+  - "src/index.js"
 updated_at: "2026-11-07"
 ---
 
@@ -13,18 +13,20 @@ updated_at: "2026-11-07"
 
 The action has a single runtime entry: `dist/index.cjs` (declared in
 `action.yml` under `runs.main`). That file is an **esbuild bundle** of
-`index.js` and its imports — it is committed so the action needs no install step
+`src/index.js` and its imports — it is committed so the action needs no install step
 at run time.
 
 ## Runtime path
 
 1. GitHub Actions checks out the repo and invokes the action.
-2. `index.js` reads the inputs (`wiki-dir`, `out-dir`, `site-title`,
-   `github-repo`, `github-branch`, `categories`) via `@actions/core`.
+2. `src/index.js` reads the inputs (`wiki-dir`, `out-dir`, `site-title`,
+   `github-repo`, `github-branch`, `categories`, the `highlight-theme` /
+   `highlight-theme-dark` inputs, `custom-highlight-css`, and `logo`) via
+   `@actions/core`.
 3. It fills in defaults from the environment when the caller omits them:
    `github-repo` ← `GITHUB_REPOSITORY`, `github-branch` ← `GITHUB_REF_NAME`.
    If `github-repo` still cannot be determined, it throws.
-4. It calls `buildSite()` from `lib/build-site.js`, which renders the whole site
+4. It calls `buildSite()` from `src/build-site.js`, which renders the whole site
    into `out-dir`. See [[build-pipeline]] for the internal steps.
 5. It logs the page count and warns about any unresolvable `[[wiki-links]]`.
    On error, `core.setFailed(err.message)` marks the step red.
@@ -37,16 +39,17 @@ official GitHub Pages custom-workflow pattern:
 
 ```yaml
 - uses: iromu/wiki-site-action@v2
-  with: { wiki-dir: .wiki, out-dir: dist }
+  with: { wiki-dir: .wiki, out-dir: dist-site }
 - uses: actions/upload-pages-artifact@v3
-  with: { path: dist }
+  with: { path: dist-site }
 # then a deploy job runs actions/deploy-pages@v1
 ```
 
 The repo's Pages source must be set to **GitHub Actions** for this to publish.
-The earlier `gh-pages` publish step that older versions embedded (and that the
-`package.json` description still mentions) was removed in `v2` — see
-[[bundle-and-docs-drift]].
+The earlier `gh-pages` publish step that older versions embedded was removed in
+`v2`, and the `package.json` description was aligned with the build-only
+behavior. See [[bundle-and-docs-drift]] for the dist-sync risk and
+[[build-and-dev]] for the CI and deploy workflows.
 
 ## Inputs
 

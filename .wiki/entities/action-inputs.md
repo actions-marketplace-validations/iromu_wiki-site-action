@@ -5,35 +5,35 @@ status: "active"
 language: "default"
 source_paths:
   - "action.yml"
-  - "index.js"
-  - "lib/build-site.js"
+  - "src/index.js"
+  - "src/build-site.js"
 updated_at: "2026-11-07"
 ---
 
 # Action inputs and frontmatter
 
 The two shapes of configuration the action consumes: the workflow inputs
-(declared in `action.yml`, read in `index.js`) and the per-page YAML frontmatter
-(parsed in `lib/build-site.js`).
+(declared in `action.yml`, read in `src/index.js`) and the per-page YAML frontmatter
+(parsed in `src/build-site.js`).
 
 ## Workflow inputs
 
 | Input            | Default                                              | Notes |
 | ---------------- | ---------------------------------------------------- | ----- |
 | `wiki-dir`       | `.wiki`                                              | Source wiki, relative to repo root. |
-| `out-dir`        | `dist`                                               | Where the site is written (overwritten). |
+| `out-dir`        | `dist-site`                                          | Where the site is written (overwritten). Kept separate from the action's own `dist/`, which holds the bundle and its runtime assets. |
 | `site-title`     | *(index page `title`)*                               | Brand / page titles / 404 title. |
 | `github-repo`    | `GITHUB_REPOSITORY`                                  | `owner/repo` for source links; required. |
 | `github-branch`  | `GITHUB_REF_NAME`                                    | Branch for source links. |
 | `categories`     | `overview,entities,concepts,flows,features,risks,reference` | Ordered sidebar dirs; unlisted dirs are appended. |
-| `highlight-theme`| `github`                                               | highlight.js theme for code blocks in light mode (see `dist/highlight-themes/`); unknown values fall back to `github`. |
-| `highlight-theme-dark` | `github-dark`                                | highlight.js theme for code blocks in dark mode; unknown values fall back to `github-dark`. |
+| `highlight-theme`| `github`                                               | highlight.js theme for code blocks in light mode (see `dist/highlight-themes/`); unknown values fall back to `github`. Its base colors also drive the light-mode **page palette** (background, text, borders). |
+| `highlight-theme-dark` | `github-dark`                                | highlight.js theme for code blocks in dark mode; unknown values fall back to `github-dark`. Its base colors also drive the dark-mode **page palette**. |
 | `custom-highlight-css` | _(empty)_                                     | Path to a CSS file appended after the theme to override/extend it. |
 | `logo` | _(empty)_ | Path to a logo image shown in the sidebar next to the site title. |
 
-`index.js` splits `categories` on commas, trims, and drops empties. Note the
+`src/index.js` splits `categories` on commas, trims, and drops empties. Note the
 default `categories` string is duplicated in `action.yml` and in
-`lib/build-site.js` (`DEFAULT_CATEGORIES`) — keep them in sync.
+`src/build-site.js` (`DEFAULT_CATEGORIES`) — keep them in sync.
 
 ## Per-page frontmatter
 

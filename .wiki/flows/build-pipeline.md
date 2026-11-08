@@ -4,14 +4,16 @@ type: "flow"
 status: "active"
 language: "default"
 source_paths:
-  - "lib/build-site.js"
+  - "src/build-site.js"
 updated_at: "2026-11-07"
 ---
 
 # Build pipeline
 
-`buildSite()` in `lib/build-site.js` is the spine of the action. It runs five
-steps, in order, and returns `{ pages, outDir, siteTitle, brokenLinks }`.
+`buildSite()` in `src/build-site.js` is the spine of the action. It runs five
+steps, in order, and returns a summary object: `{ pages, outDir, siteTitle,
+brokenLinks, highlightTheme, highlightThemeDark, customHighlightCssApplied,
+logo, ... }` (plus `*Error` strings when an optional asset is missing).
 
 ## 1. Discover and parse pages
 
@@ -51,14 +53,19 @@ set), then:
 
 ## 4. Write static assets
 
-Into the output root: `style.css`, `site.js`, `search-index.js` (the JSON of
-`{ slug, title, path, category, text }` entries), `highlight.css`, and
-`404.html`.
+Into the output root: `style.css` (the base site stylesheet with the derived
+page palette appended — see [[site-chrome]]), `site.js`, `search-index.js` (the
+JSON of `{ slug, title, path, category, text }` entries), `highlight.css` (the
+**light** code theme), `highlight-dark.css` (the **dark** code theme),
+`404.html`, and — when a `logo` is provided — the copied logo image. The theme
+CSS and the base stylesheet are read into memory **before** the output directory
+is cleared, so the build works even when `out-dir` points at the action's own
+`dist/`.
 
 ## 5. Return a summary
 
 Returns the page count, output dir, resolved site title, and the array of
-broken-link slugs (which `index.js` turns into a warning).
+broken-link slugs (which `src/index.js` turns into a warning).
 
 The whole output directory is wiped and recreated at the start
 (`rmSync` + `mkdirSync`), so a build is always idempotent.

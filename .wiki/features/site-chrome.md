@@ -4,7 +4,8 @@ type: "feature"
 status: "active"
 language: "default"
 source_paths:
-  - "lib/build-site.js"
+  - "src/build-site.js"
+  - "src/style.css"
 updated_at: "2026-11-07"
 ---
 
@@ -12,7 +13,7 @@ updated_at: "2026-11-07"
 
 Beyond converting Markdown, the generator produces the surrounding "chrome" that
 makes the wiki navigable. These are the presentational builders in
-`lib/build-site.js`.
+`src/build-site.js`.
 
 ## Sidebar
 
@@ -60,14 +61,33 @@ highlight stylesheet is active.
 
 ## Assets
 
-Three stylesheets are written out: `style.css` (layout, prose, sidebar,
+Three stylesheets are written out: `style.css`, `highlight.css` (the **light**
+code theme, chosen by `highlight-theme`, default `github`), and
+`highlight-dark.css` (the **dark** code theme, chosen by `highlight-theme-dark`,
+default `github-dark`).
+
+All runtime assets live under `dist/` and are copied there by
+`scripts/copy-assets.js` during `npm run build`, so the committed `dist/` is
+self-contained for the action: the `*.min.css` themes go to
+`dist/highlight-themes/` and `src/style.css` (the layout, prose, sidebar, and
 responsive breakpoint at 900px, plus the dark palette under
-`html[data-theme="dark"]`), `highlight.css` (the **light** code theme, chosen by
-`highlight-theme`, default `github`), and `highlight-dark.css` (the **dark** code
-theme, chosen by `highlight-theme-dark`, default `github-dark`). Both highlight
-files come from the committed themes under `dist/highlight-themes/` and are read
-at build time; an optional `custom-highlight-css` file is appended after each so
-it overrides both. A `logo` image is copied into the output when provided, and a
+`html[data-theme="dark"]`) goes to `dist/style.css`. The generator reads them
+from `dist/` (falling back to `src/style.css` for the stylesheet) **before** it
+clears the output directory, so the build works even when `out-dir` points at
+`dist/` itself.
+
+**Page palette.** The page chrome is not a fixed white page — it adopts the
+colors of the selected code themes. At build time the generator parses each
+theme's base `.hljs` rule for its background and foreground, derives the rest of
+the palette (muted text, borders, soft surfaces) from those two colors, and
+appends a `:root` / `html[data-theme="dark"]` override block to the output
+`style.css` so it wins over the defaults. (The code element is emitted as
+`class="hljs language-x"` so the theme's base `.hljs` rules — background, text
+color, and `pre code.hljs` padding — apply to the whole block, not just the token
+spans.) A theme whose base colors can't be parsed (e.g. `equinox`, which relies
+on `currentColor`) simply keeps the default palette for that mode. An optional
+`custom-highlight-css` file is appended after each highlight theme so it
+overrides both. A `logo` image is copied into the output when provided, and a
 minimal `404.html` is also written.
 
 ## Source chips
