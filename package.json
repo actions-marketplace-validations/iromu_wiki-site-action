@@ -1,6 +1,6 @@
 {
   "name": "wiki-site-action",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "GitHub Action that builds a .wiki/ knowledge base into a static site.",
   "type": "module",
