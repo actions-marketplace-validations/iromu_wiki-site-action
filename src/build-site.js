@@ -19,14 +19,24 @@ import hljs from 'highlight.js';
 
 const DEFAULT_CATEGORIES = ['overview', 'entities', 'concepts', 'flows', 'features', 'risks', 'reference'];
 
+// The action's own root — the directory that contains both dist/ and src/.
+// The committed runtime assets (highlight themes + site stylesheet) live in
+// dist/ next to this bundle, so they are resolved from HERE, not from
+// process.cwd(): when the action runs via `uses: owner/repo@tag` from another
+// repository, cwd is the *consumer's* workspace, which has no dist/.
+//   - CJS bundle (the action): this file is dist/index.cjs, so the root is the
+//     parent of __dirname (dist/).
+//   - ESM source (the tests): `npm test` runs from the repo root, so cwd is it.
+const ACTION_ROOT = typeof __dirname !== 'undefined'
+  ? dirname(__dirname)
+  : process.cwd();
+
 // Default code-highlight theme. The theme CSS files are committed under
 // dist/highlight-themes/ and read at build time (so the bundle stays small).
-// The action runs with the repo root as its working directory (like the
-// wiki-dir/out-dir inputs), so the themes are resolved from there.
 const DEFAULT_THEME = 'github';
 const DEFAULT_DARK_THEME = 'github-dark';
 function resolveThemesDir() {
-  return join(process.cwd(), 'dist', 'highlight-themes');
+  return join(ACTION_ROOT, 'dist', 'highlight-themes');
 }
 
 // Pick the requested theme if its minified CSS file exists, otherwise the
@@ -520,8 +530,9 @@ export function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle
   const darkThemeCss = readFileSync(darkThemeFile, 'utf8');
 
   // Prefer the built/committed dist/style.css; fall back to the src/ source so
-  // the generator still works before `npm run build` has copied it.
-  const styleSrc = [join(process.cwd(), 'dist', 'style.css'), join(process.cwd(), 'src', 'style.css')]
+  // the generator still works before `npm run build` has copied it. Both are
+  // resolved from the action's own root (see ACTION_ROOT), not cwd.
+  const styleSrc = [join(ACTION_ROOT, 'dist', 'style.css'), join(ACTION_ROOT, 'src', 'style.css')]
     .find(p => existsSync(p));
   if (!styleSrc) {
     throw new Error('Site stylesheet not found: run `npm run build` to copy src/style.css into dist/ (or restore src/style.css).');

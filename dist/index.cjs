@@ -78050,10 +78050,11 @@ var es_default = import_lib.default;
 
 // src/build-site.js
 var DEFAULT_CATEGORIES = ["overview", "entities", "concepts", "flows", "features", "risks", "reference"];
+var ACTION_ROOT = typeof __dirname !== "undefined" ? (0, import_node_path.dirname)(__dirname) : process.cwd();
 var DEFAULT_THEME = "github";
 var DEFAULT_DARK_THEME = "github-dark";
 function resolveThemesDir() {
-  return (0, import_node_path.join)(process.cwd(), "dist", "highlight-themes");
+  return (0, import_node_path.join)(ACTION_ROOT, "dist", "highlight-themes");
 }
 function resolveThemeFile(themesDir, requested, fallback) {
   const key = (requested || "").toLowerCase().trim();
@@ -78501,7 +78502,7 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   }
   const lightThemeCss = (0, import_node_fs.readFileSync)(lightThemeFile, "utf8");
   const darkThemeCss = (0, import_node_fs.readFileSync)(darkThemeFile, "utf8");
-  const styleSrc = [(0, import_node_path.join)(process.cwd(), "dist", "style.css"), (0, import_node_path.join)(process.cwd(), "src", "style.css")].find((p) => (0, import_node_fs.existsSync)(p));
+  const styleSrc = [(0, import_node_path.join)(ACTION_ROOT, "dist", "style.css"), (0, import_node_path.join)(ACTION_ROOT, "src", "style.css")].find((p) => (0, import_node_fs.existsSync)(p));
   if (!styleSrc) {
     throw new Error("Site stylesheet not found: run `npm run build` to copy src/style.css into dist/ (or restore src/style.css).");
   }
