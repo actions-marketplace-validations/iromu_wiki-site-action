@@ -246,7 +246,7 @@ marked.use({
         };
       },
       renderer(token) {
-        const target = slugMap[token.slug];
+        const target = slugMap[token.slug.replace(/\.md$/, '')];
         if (!target) {
           brokenLinks.add(token.slug);
           return `<a class="wikilink-missing" title="No wiki page for [[${escapeHtml(token.slug)}]]">${escapeHtml(token.label)}</a>`;
@@ -571,8 +571,16 @@ export function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle
     || 'Wiki';
   const catLabels = Object.fromEntries(categories.map(k => [k, k.charAt(0).toUpperCase() + k.slice(1)]));
 
-  // 2. Slug map for wiki-link resolution.
-  slugMap = Object.fromEntries(pages.map(p => [p.slug, p]));
+  // 2. Slug map for wiki-link resolution. A page is reachable by both its
+  // basename slug ([[multi-provider]]) and its folder-relative path
+  // ([[features/multi-provider]]); the git-wiki skill emits the latter, so
+  // register both forms (the path form also disambiguates same-named pages in
+  // different folders).
+  slugMap = {};
+  for (const p of pages) {
+    slugMap[p.slug] = p;                            // basename: "multi-provider"
+    slugMap[p.relPath.replace(/\.md$/, '')] = p;    // path: "features/multi-provider"
+  }
   brokenLinks = new Set();
 
   // 2b. Optional logo: copy the image into the output so the static site can

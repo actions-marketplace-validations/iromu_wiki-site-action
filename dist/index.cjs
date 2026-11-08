@@ -78258,7 +78258,7 @@ marked.use({
         };
       },
       renderer(token) {
-        const target = slugMap[token.slug];
+        const target = slugMap[token.slug.replace(/\.md$/, "")];
         if (!target) {
           brokenLinks.add(token.slug);
           return `<a class="wikilink-missing" title="No wiki page for [[${escapeHtml(token.slug)}]]">${escapeHtml(token.label)}</a>`;
@@ -78530,7 +78530,11 @@ function buildSite({ wikiDir, outDir, githubRepo, githubBranch, siteTitle = "", 
   });
   const resolvedTitle = siteTitle || pages.find((p) => p.slug === "index")?.title || "Wiki";
   const catLabels = Object.fromEntries(categories.map((k) => [k, k.charAt(0).toUpperCase() + k.slice(1)]));
-  slugMap = Object.fromEntries(pages.map((p) => [p.slug, p]));
+  slugMap = {};
+  for (const p of pages) {
+    slugMap[p.slug] = p;
+    slugMap[p.relPath.replace(/\.md$/, "")] = p;
+  }
   brokenLinks = /* @__PURE__ */ new Set();
   let logoFile = "";
   let logoError = null;

@@ -24,7 +24,7 @@ try {
   mkdirSync(join(wiki, 'features'), { recursive: true });
   writeFileSync(join(wiki, 'index.md'),
     '---\ntitle: "Test Wiki"\ntype: "index"\nupdated_at: "2026-01-01"\n---\n\n' +
-    '# Test\n\nSee [[foo]] and a broken [[nope]].\n\n```js\nconsole.log(\'hi\');\n```\n');
+    '# Test\n\nSee [[foo]], [[features/bar]], and [[features/bar.md]] plus a broken [[nope]].\n\n```js\nconsole.log(\'hi\');\n```\n');
   writeFileSync(join(wiki, 'concepts', 'foo.md'),
     '---\ntitle: "Foo"\nsource_paths: ["src/foo.java"]\n---\n\n# Foo\n\nBack to [[index]].\n');
   writeFileSync(join(wiki, 'features', 'bar.md'), '---\ntitle: "Bar"\n---\n\n# Bar\n');
@@ -35,13 +35,14 @@ try {
   assert(result.pages === 3, `3 pages built (got ${result.pages})`);
   assert(result.siteTitle === 'Test Wiki', `site title derived from index (got "${result.siteTitle}")`);
   assert(result.brokenLinks.length === 1 && result.brokenLinks[0] === 'nope',
-    `broken link detected (got ${JSON.stringify(result.brokenLinks)})`);
+    `only the truly-missing link is broken (got ${JSON.stringify(result.brokenLinks)})`);
   for (const f of ['index.html', 'style.css', 'site.js', 'search-index.js', '404.html', 'highlight.css',
     'highlight-dark.css', 'concepts/foo.html', 'features/bar.html']) {
     assert(existsSync(join(out, f)), `output exists: ${f}`);
   }
   const indexHtml = readFileSync(join(out, 'index.html'), 'utf8');
-  assert(indexHtml.includes('href="concepts/foo.html"'), 'wiki-link [[foo]] resolved to concepts/foo.html');
+  assert(indexHtml.includes('href="concepts/foo.html"'), 'wiki-link [[foo]] (basename) resolved to concepts/foo.html');
+  assert(indexHtml.includes('href="features/bar.html"'), 'wiki-link [[features/bar]] (path form) resolved to features/bar.html');
   assert(indexHtml.includes('wikilink-missing'), 'broken [[nope]] marked as missing');
   assert(indexHtml.includes('Test Wiki'), 'site title present in index');
   assert(indexHtml.includes('id="theme-toggle"'), 'theme toggle button present');
