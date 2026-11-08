@@ -1,9 +1,7 @@
 name: Wiki Site Action
 description: >-
-  Build a .wiki/ knowledge base into a static site (category sidebar, per-page
-  TOC, code highlighting, client-side search) into an output directory. The
-  consuming workflow uploads that directory with actions/upload-pages-artifact
-  and deploys it with actions/deploy-pages.
+  Build a .wiki/ knowledge base into a static site: sidebar, TOC, search,
+  light/dark theming, and theme-derived page palette.
 
 inputs:
   wiki-dir:
