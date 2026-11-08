@@ -7,7 +7,7 @@
   "main": "dist/index.cjs",
   "scripts": {
     "build": "node scripts/copy-assets.js && esbuild src/index.js --bundle --platform=node --format=cjs --target=node24 --outfile=dist/index.cjs",
-    "test": "node test/smoke.js",
+    "test": "node test/smoke.js && node test/cross-cwd.js",
     "preview": "node scripts/preview.js"
   },
   "dependencies": {
