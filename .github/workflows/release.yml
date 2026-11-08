@@ -89,7 +89,11 @@ jobs:
         run: |
           set -euo pipefail
           OLD_VERSION=$(node -p "require('./package.json').version")
-          NEW_VERSION=$(npm version "${{ inputs.bump }}" --no-git-tag-version)
+          # npm version's stdout format is not stable across npm versions (some
+          # print "vX.Y.Z"), so don't trust it — read the authoritative version
+          # back from package.json after the bump.
+          npm version "${{ inputs.bump }}" --no-git-tag-version >/dev/null
+          NEW_VERSION=$(node -p "require('./package.json').version")
           echo "old=$OLD_VERSION" >> "$GITHUB_OUTPUT"
           echo "new=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"

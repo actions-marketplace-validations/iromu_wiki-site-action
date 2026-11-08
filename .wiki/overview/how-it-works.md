@@ -38,7 +38,7 @@ and does nothing else. Publishing is the consuming workflow's job, using the
 official GitHub Pages custom-workflow pattern:
 
 ```yaml
-- uses: iromu/wiki-site-action@vv2.0.2
+- uses: iromu/wiki-site-action@v2.0.2
   with: { wiki-dir: .wiki, out-dir: dist-site }
 - uses: actions/upload-pages-artifact@v3
   with: { path: dist-site }
