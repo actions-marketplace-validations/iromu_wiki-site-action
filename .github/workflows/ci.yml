@@ -11,6 +11,9 @@ concurrency:
 
 jobs:
   build-and-test:
+    # The release workflow's version-bump commit only touches package.json + docs,
+    # never src/ or dist/, so it would just re-run this suite green. Skip it.
+    if: "!startsWith(github.event.head_commit.message, 'chore: release v')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

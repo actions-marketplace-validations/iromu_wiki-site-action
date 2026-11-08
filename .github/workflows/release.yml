@@ -1,0 +1,125 @@
+name: Release
+
+# Generates a GitHub release and publishes it to the GitHub Actions Marketplace.
+#
+# For a repository action, publishing to the Marketplace happens by pushing a
+# tag: the Marketplace automatically lists every release tag as a version.
+# (The one-time "Publish" button on the Marketplace page is done by the repo
+# owner; after that, each new tag is picked up automatically.) So this
+# workflow's job is to produce the release + tag.
+#
+# Steps:
+#   1. test    — run the suite and verify the committed dist/ is in sync.
+#   2. release — bump the chosen semver level in package.json, re-sync the
+#                @<tag> refs in the docs (README + .wiki) so the tag, manifest
+#                and docs all agree, commit + push, then create the release.
+#
+# Trigger manually: Actions -> Release -> Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver level to bump (new feature -> minor, fix -> patch)
+        required: true
+        default: patch
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      release-notes:
+        description: Release notes (leave empty to auto-generate from commits)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+  # pull-requests: read lets --generate-notes reference PRs.
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (copy runtime assets + bundle)
+        run: npm run build
+
+      # A version bump must never leave the published bundle behind the source.
+      - name: Verify committed dist/ is in sync
+        run: git diff --exit-code -- dist/
+
+      - name: Run tests
+        run: npm test
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for auto-generated release notes
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Bump version + sync doc references
+        id: bump
+        run: |
+          set -euo pipefail
+          OLD_VERSION=$(node -p "require('./package.json').version")
+          NEW_VERSION=$(npm version "${{ inputs.bump }}" --no-git-tag-version)
+          echo "old=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          # Keep the @<tag> refs in the docs in sync with the new tag.
+          grep -rl -- "@v${OLD_VERSION}" README.md .wiki/ 2>/dev/null \
+            | xargs -r sed -i "s/@v${OLD_VERSION}/@v${NEW_VERSION}/g"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json README.md .wiki/
+          if git diff --cached --quiet; then
+            echo "No changes to commit; skipping."
+          else
+            git commit -m "chore: release v${{ steps.bump.outputs.new }}"
+            git push
+          fi
+
+      - name: Create release + tag (publishes to the Marketplace)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.bump.outputs.new }}"
+          if [ -n "${{ inputs.release-notes }}" ]; then
+            gh release create "$TAG" --target main --title "$TAG" \
+              --notes "${{ inputs.release-notes }}"
+          else
+            gh release create "$TAG" --target main --title "$TAG" \
+              --generate-notes
+          fi
+          echo "Published $TAG -> https://github.com/${{ github.repository }}/releases/tag/$TAG"
